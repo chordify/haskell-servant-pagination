@@ -94,6 +94,7 @@ module Servant.Pagination
 
   -- * Declare Ranges
   , FromRange(..)
+  , FromHttpApiData(..)
   , FromRangeOptions(..)
   , defaultOptions
 
