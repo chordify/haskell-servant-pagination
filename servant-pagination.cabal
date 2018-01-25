@@ -1,0 +1,47 @@
+name:                servant-pagination
+description:         Type-safe pagination for Servant APIs
+version:             1.0.0
+homepage:            https://github.com/chordify/haskell-servant-pagination
+license:             GPL-3.0
+license-file:        LICENSE
+author:              Chordify <Matthias Benkort@KtorZ>
+maintainer:          Chordify <dev@chordify.net>
+copyright:           (c) 2018 Chordify
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.20
+
+library
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall -Werror -j4
+  default-extensions:  BangPatterns
+                     , DefaultSignatures
+                     , DataKinds
+                     , DeriveDataTypeable
+                     , DeriveFunctor
+                     , DeriveGeneric
+                     , ExistentialQuantification
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , GADTs
+                     , KindSignatures
+                     , MultiParamTypeClasses
+                     , OverloadedStrings
+                     , ParallelListComp
+                     , RecordWildCards
+                     , TupleSections
+                     , ScopedTypeVariables
+                     , TypeOperators
+
+  build-depends:       base
+                     , bytestring
+                     , text
+                     , servant
+                     , servant-server
+                     , http-api-data
+                     , safe
+                     , time
+
+  exposed-modules:     Servant.Pagination
+                     , Servant.Pagination.Internal
