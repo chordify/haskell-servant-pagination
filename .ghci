@@ -1,0 +1,9 @@
+:set prompt $>
+:set -XNoImplicitPrelude
+:set -XOverloadedStrings
+:set -XTupleSections
+:set -XGADTs
+:set -XDeriveGeneric
+:set -XDeriveDataTypeable
+:set -XRecordWildCards
+:set -XTypeFamilies
