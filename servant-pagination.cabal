@@ -35,13 +35,10 @@ library
                      , TypeOperators
 
   build-depends:       base
-                     , bytestring
                      , text
                      , servant
                      , servant-server
-                     , http-api-data
                      , safe
-                     , time
 
   exposed-modules:     Servant.Pagination
                      , Servant.Pagination.Internal
