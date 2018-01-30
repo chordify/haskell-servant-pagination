@@ -192,8 +192,8 @@ data ContentRange range = ContentRange
 instance (ToHttpApiData typ, KnownSymbol field) => ToHttpApiData (ContentRange (Range field typ)) where
   toUrlPiece (ContentRange start end) =
     Text.pack (symbolVal (Proxy :: Proxy field))
-    <> " "  <> toUrlPiece start
-    <> ".." <> toUrlPiece end
+    <> " "  <> (fromMaybe "" (toUrlPiece <$> rangeValue start))
+    <> ".." <> (fromMaybe "" (toUrlPiece <$> rangeValue end))
 
 instance (ToHttpApiData (ContentRange a), ToHttpApiData (ContentRange b)) => ToHttpApiData (ContentRange (a :|: b)) where
   toUrlPiece (ContentRange (InL sa) (InL ea)) =
@@ -211,7 +211,7 @@ data NextRange range = NextRange range
 
 instance (ToHttpApiData typ, KnownSymbol field) => ToHttpApiData (NextRange (Range field typ)) where
   toUrlPiece (NextRange r) =
-    Text.pack (symbolVal (Proxy :: Proxy field)) <> " " <> toUrlPiece r
+    toUrlPiece r
 
 instance (ToHttpApiData (NextRange a), ToHttpApiData (NextRange b)) => ToHttpApiData (NextRange (a :|: b)) where
   toUrlPiece (NextRange (InL a)) =
@@ -236,13 +236,13 @@ type PageHeaders range =
 
 -- | Default values to apply when parsing a Range
 data FromRangeOptions  = FromRangeOptions
-  { defaultRangeLimit :: Int
-  , defaultRangeSkip  :: Int
-  , defaultRangeOrder :: RangeOrder
+  { defaultRangeLimit  :: Int
+  , defaultRangeOffset :: Int
+  , defaultRangeOrder  :: RangeOrder
   } deriving (Eq, Show)
 
 
--- | Some default options of default values for a Range (limit 100; skip 0; order desc)
+-- | Some default options of default values for a Range (limit 100; offset 0; order desc)
 defaultOptions :: FromRangeOptions
 defaultOptions =
   FromRangeOptions 100 0 RangeDesc
@@ -291,7 +291,7 @@ instance (FromHttpApiData typ, KnownSymbol field) => FromRange (Range field typ)
           Range
             <$> sequence (fmap parseQueryParam (listToMaybe value))
             <*> ifOpt "limit" defaultRangeLimit opts
-            <*> ifOpt "skip"  defaultRangeSkip opts
+            <*> ifOpt "offset"  defaultRangeOffset opts
             <*> ifOpt "order" defaultRangeOrder opts
 
         _ ->
@@ -309,6 +309,11 @@ instance (FromHttpApiData typ, KnownSymbol field) => FromRange (Range field typ)
       ifOpt :: FromHttpApiData o => Text -> o -> [(Text, Text)] -> Either Text o
       ifOpt opt def =
         maybe (pure def) (parseQueryParam . snd) . find ((== opt) . fst)
+
+instance {-# Overlappable #-} (FromHttpApiData typ, KnownSymbol field) => FromHttpApiData (Range field typ) where
+  parseUrlPiece =
+    parseRange defaultOptions
+
 
 type TotalCount =
   Maybe Natural
