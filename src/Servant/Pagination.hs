@@ -99,16 +99,18 @@ module Servant.Pagination
   , FromHttpApiData(..)
   , FromRangeOptions(..)
   , defaultOptions
+  , defaultRange
 
   -- * Use Ranges
   , HasPagination(..)
+  , applyRange
 
   -- * Combine Ranges
   , (:|:)(..)
   ) where
 
 import           Data.List                   (filter, find)
-import           Data.Maybe                  (listToMaybe)
+import           Data.Maybe                  (fromMaybe, listToMaybe)
 import           Data.Proxy                  (Proxy (..))
 import           Data.Semigroup              ((<>))
 import           Data.Text                   (Text)
@@ -117,6 +119,7 @@ import           GHC.TypeLits                (KnownSymbol, Symbol, symbolVal)
 import           Numeric.Natural             (Natural)
 import           Servant
 
+import qualified Data.List                   as List
 import qualified Data.Text                   as Text
 import qualified Safe
 
@@ -243,6 +246,16 @@ data FromRangeOptions  = FromRangeOptions
 defaultOptions :: FromRangeOptions
 defaultOptions =
   FromRangeOptions 100 0 RangeDesc
+
+
+-- | Some default range based on the default options
+defaultRange :: Maybe a -> FromRangeOptions -> Range field a
+defaultRange val opts =
+  let
+    (FromRangeOptions lim off ord) =
+      opts
+  in
+    Range val lim off ord
 
 
 -- | Parse a Range object from a `Range` request's header. Any `Range field typ` and combinations
@@ -376,3 +389,35 @@ class (KnownSymbol field, ToHttpApiData typ) => HasPagination resource field typ
 
         return
           $ acceptRanges $ contentRange $ nextRange $ totalCount rs
+
+
+-- | Apply a range to a list of element
+applyRange :: forall a b field. (HasPagination b field a, Ord a) => Range field a -> [b] -> [b]
+applyRange Range{..} =
+  let
+    field =
+      Proxy :: Proxy (field :: Symbol)
+
+    sortRel =
+      case rangeOrder of
+        RangeDesc ->
+          \a b -> compare (b ^. field) (a ^. field)
+
+        RangeAsc ->
+          \a b -> compare (a ^. field) (b ^. field)
+
+    dropRel =
+      case (rangeValue, rangeOrder) of
+        (Nothing, _) ->
+          const False
+
+        (Just a, RangeDesc) ->
+          (>= a) . (^. field)
+
+        (Just a, RangeAsc) ->
+          (<= a) . (^. field)
+  in
+      List.take rangeLimit
+    . List.drop rangeOffset
+    . List.dropWhile dropRel
+    . List.sortBy sortRel
