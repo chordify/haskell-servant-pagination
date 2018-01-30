@@ -20,17 +20,19 @@ module Servant.Pagination
   -- created after the fifteenth of January, skipping the first 5.
   --
   -- As a response, the server may return the list of corresponding document, and augment the
-  -- response with 3 headers:
+  -- response with 3 or 4 headers:
   --
   -- - @Accept-Ranges@: A comma-separated list of field upon which a range can be defined
   -- - @Content-Range@: Actual range corresponding to the content being returned
   -- - @Next-Range@: Indicate what should be the next @Range@ header in order to retrieve the next range
+  -- - @Total-Count@: Optional, but if present, refers to the total number of resources in the collection
   --
   -- For example:
   --
   -- - @Accept-Ranges: createdAt, modifiedAt@
   -- - @Content-Range@: createdAt 2017-01-15T23:14:51.000Z..2017-02-18T06:10:23.000Z
   -- - @Next-Range@: createdAt 2017-02-19T12:56:28.000Z; offset 0; limit 100; order desc
+  -- - @Total-Count@: 1442
   --
   -- * Getting Starting
   --
@@ -74,15 +76,14 @@ module Servant.Pagination
   -- >   case mrange of
   -- >     Just range -> do
   -- >       -- ...
-  -- >       returnPage range xs
+  -- >       returnPage (Just count) range xs
   -- >
   -- >     Nothing ->
   -- >       -- ...
   --
-  -- * Provide Additional Headers
-  --
-  --
   -- * Multiple Ranges
+  --
+  -- TODO
 
   -- * Types
     Range(..)
@@ -91,6 +92,7 @@ module Servant.Pagination
   , ContentRange (..)
   , NextRange (..)
   , PageHeaders
+  , TotalCount
 
   -- * Declare Ranges
   , FromRange(..)
@@ -112,6 +114,7 @@ import           Data.Semigroup              ((<>))
 import           Data.Text                   (Text)
 import           GHC.Generics                (Generic)
 import           GHC.TypeLits                (KnownSymbol, Symbol, symbolVal)
+import           Numeric.Natural             (Natural)
 import           Servant
 
 import qualified Data.Text                   as Text
@@ -220,6 +223,7 @@ type PageHeaders range =
   '[ Header "Accept-Ranges" (AcceptRanges range)
    , Header "Content-Range" (ContentRange range)
    , Header "Next-Range"    (NextRange range)
+   , Header "Total-Count"   Natural
    ]
 
 
@@ -293,6 +297,8 @@ instance (FromHttpApiData typ, KnownSymbol field) => FromRange (Range field typ)
       ifOpt opt def =
         maybe (pure def) (parseQueryParam . snd) . find ((== opt) . fst)
 
+type TotalCount =
+  Maybe Natural
 
 --
 -- USE RANGES
@@ -312,14 +318,25 @@ class (KnownSymbol field, ToHttpApiData typ) => HasPagination resource field typ
   default getRangeField :: Proxy field -> resource -> typ
   getRangeField field resource = resource ^. field
 
-  returnPage :: forall m ranges.
+  returnPage_ :: forall m ranges.
     ( Monad m
     , (Range field typ) :<: ranges
     , ToAcceptRanges ranges
     , ToHttpApiData (ContentRange ranges)
     , ToHttpApiData (NextRange ranges)
     ) => (Range field typ) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
-  returnPage range rs = do
+  returnPage_ =
+    returnPage Nothing
+  {-# INLINE returnPage_ #-}
+
+  returnPage :: forall m ranges.
+    ( Monad m
+    , (Range field typ) :<: ranges
+    , ToAcceptRanges ranges
+    , ToHttpApiData (ContentRange ranges)
+    , ToHttpApiData (NextRange ranges)
+    ) => TotalCount -> (Range field typ) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
+  returnPage count range rs = do
     let field =
           Proxy :: Proxy field
 
@@ -328,23 +345,34 @@ class (KnownSymbol field, ToHttpApiData typ) => HasPagination resource field typ
           <*> fmap (^. field) (Safe.lastMay rs)
 
     let acceptRanges =
-          AcceptRanges :: AcceptRanges ranges
+          addHeader (AcceptRanges :: AcceptRanges ranges)
+
+    let totalCount =
+          maybe noHeader addHeader count
 
     case boundaries of
       Nothing ->
-        return $ addHeader acceptRanges $ noHeader $ noHeader rs
+        return $
+          acceptRanges $ noHeader $ noHeader $ totalCount rs
 
       Just (start, end) -> do
-        let contentRange = ContentRange
-              { contentRangeStart = liftRange $ (range { rangeValue = Just start } :: Range field typ)
-              , contentRangeEnd   = liftRange $ (range { rangeValue = Just end } :: Range field typ)
-              }
+        let rangeStart =
+              liftRange $ (range { rangeValue = Just start } :: Range field typ)
 
-        let nextRange = NextRange $ liftRange $
-              (range { rangeValue  = Just end, rangeOffset = 0 } :: Range field typ)
+        let rangeEnd =
+              liftRange $ (range { rangeValue = Just end } :: Range field typ)
+
+        let rangeNext =
+              liftRange $ (range { rangeValue = Just end, rangeOffset = 0 } :: Range field typ)
+
+        let contentRange =
+              addHeader $ ContentRange
+                { contentRangeStart = rangeStart
+                , contentRangeEnd   = rangeEnd
+                }
+
+        let nextRange =
+              addHeader $ NextRange $ rangeNext
 
         return
-          $ addHeader acceptRanges
-          $ addHeader contentRange
-          $ addHeader nextRange
-          rs
+          $ acceptRanges $ contentRange $ nextRange $ totalCount rs
