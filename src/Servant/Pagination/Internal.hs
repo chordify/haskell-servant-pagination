@@ -6,7 +6,7 @@ import           Data.Kind      (Constraint)
 import           Data.Proxy     (Proxy (..))
 import           Data.Semigroup ((<>))
 import           Data.Text      (Text)
-import           Servant        (ToHttpApiData (..))
+import           Servant        (FromHttpApiData (..), ToHttpApiData (..))
 
 
 -- | Helper to execute two `Either a b` successively
@@ -27,8 +27,16 @@ data a :|: b = InL a | InR b
 infixl 7 :|:
 
 instance (ToHttpApiData a, ToHttpApiData b) => ToHttpApiData (a :|: b) where
-  toUrlPiece (InL a) = toUrlPiece a
-  toUrlPiece (InR b) = toUrlPiece b
+  toUrlPiece (InL a) =
+    toUrlPiece a
+
+  toUrlPiece (InR b) =
+    toUrlPiece b
+
+instance (FromHttpApiData a, FromHttpApiData b) => FromHttpApiData (a :|: b) where
+  parseUrlPiece txt =
+             (liftRange <$> (parseUrlPiece txt :: Either Text a))
+    `orElse` (liftRange <$> (parseUrlPiece txt :: Either Text b))
 
 instance (ToAcceptRanges a, ToAcceptRanges b) => ToAcceptRanges (a :|: b) where
   toAcceptRanges _ =
