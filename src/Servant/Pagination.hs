@@ -1,4 +1,3 @@
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilies           #-}
 
 module Servant.Pagination
@@ -54,7 +53,8 @@ module Servant.Pagination
   -- > instance FromHttpApiData MyRange where
   -- >   parseUrlPiece = parseRange defaultOptions
   -- >
-  -- > instance HasPagination MyResource "createdAt" UTCTime where
+  -- > instance HasPagination MyResource "createdAt" where
+  -- >   type PaginationType MyResource "createdAt" = UTCTime
   -- >   getRangeField _ = createdAt
   --
   -- That's it, the range is ready to use and to be declared in the Servant API. Additionally,
@@ -327,33 +327,35 @@ type TotalCount =
 -- By providing a getter to retrieve the value of an actual range from a resource, the
 -- `HasPagination` class provides `returnPage` to handle the plumbering of declaring
 -- response headers related to pagination.
-class (KnownSymbol field, ToHttpApiData typ) => HasPagination resource field typ | resource field -> typ where
-  (^.) :: resource -> Proxy field -> typ
-  default (^.) :: resource -> Proxy field -> typ
+class KnownSymbol field => HasPagination resource field where
+  type PaginationType resource field :: *
+  
+  (^.) :: resource -> Proxy field -> PaginationType resource field
+  default (^.) :: resource -> Proxy field -> PaginationType resource field
   resource ^. field = getRangeField field resource
 
-  getRangeField :: Proxy field -> resource -> typ
-  default getRangeField :: Proxy field -> resource -> typ
+  getRangeField :: Proxy field -> resource -> PaginationType resource field
+  default getRangeField :: Proxy field -> resource -> PaginationType resource field
   getRangeField field resource = resource ^. field
 
   returnPage_ :: forall m ranges.
     ( Monad m
-    , (Range field typ) :<: ranges
+    , (Range field (PaginationType resource field)) :<: ranges
     , ToAcceptRanges ranges
     , ToHttpApiData (ContentRange ranges)
     , ToHttpApiData (NextRange ranges)
-    ) => (Range field typ) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
+    ) => (Range field (PaginationType resource field)) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
   returnPage_ =
     returnPage Nothing
   {-# INLINE returnPage_ #-}
 
   returnPage :: forall m ranges.
     ( Monad m
-    , (Range field typ) :<: ranges
+    , (Range field (PaginationType resource field)) :<: ranges
     , ToAcceptRanges ranges
     , ToHttpApiData (ContentRange ranges)
     , ToHttpApiData (NextRange ranges)
-    ) => TotalCount -> (Range field typ) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
+    ) => TotalCount -> (Range field (PaginationType resource field)) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
   returnPage count range rs = do
     let field =
           Proxy :: Proxy field
@@ -375,13 +377,13 @@ class (KnownSymbol field, ToHttpApiData typ) => HasPagination resource field typ
 
       Just (start, end) -> do
         let rangeStart =
-              liftRange $ (range { rangeValue = Just start } :: Range field typ)
+              liftRange $ (range { rangeValue = Just start } :: Range field (PaginationType resource field))
 
         let rangeEnd =
-              liftRange $ (range { rangeValue = Just end } :: Range field typ)
+              liftRange $ (range { rangeValue = Just end } :: Range field (PaginationType resource field))
 
         let rangeNext =
-              liftRange $ (range { rangeValue = Just end, rangeOffset = 0 } :: Range field typ)
+              liftRange $ (range { rangeValue = Just end, rangeOffset = 0 } :: Range field (PaginationType resource field))
 
         let contentRange =
               addHeader $ ContentRange
@@ -397,7 +399,7 @@ class (KnownSymbol field, ToHttpApiData typ) => HasPagination resource field typ
 
 
 -- | Apply a range to a list of element
-applyRange :: forall a b field. (HasPagination b field a, Ord a) => Range field a -> [b] -> [b]
+applyRange :: forall b field. (HasPagination b field, Ord (PaginationType b field)) => Range field (PaginationType b field) -> [b] -> [b]
 applyRange Range{..} =
   let
     field =

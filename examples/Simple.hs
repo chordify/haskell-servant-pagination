@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TypeFamilies         #-}
 
 module Main where
 
@@ -18,7 +19,9 @@ import           Color
 type NameRange =
   Range "name" String
 
-instance HasPagination Color "name" String where
+instance HasPagination Color "name" where
+  type PaginationType Color "name" = String
+  
   getRangeField _ =
     name
 

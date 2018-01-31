@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TypeFamilies         #-}
 
 module Main where
 
@@ -26,7 +27,8 @@ instance FromHttpApiData NameRange where
   parseUrlPiece =
     parseRange myOpts
 
-instance HasPagination Color "name" String where
+instance HasPagination Color "name" where
+  type PaginationType Color "name" = String
   getRangeField _ =
     name
 
@@ -38,7 +40,9 @@ instance FromHttpApiData RGBRange where
   parseUrlPiece =
     parseRange myOpts
 
-instance HasPagination Color "rgb" Int where
+instance HasPagination Color "rgb" where
+  type PaginationType Color "rgb" = Int
+  
   getRangeField _ =
     sum . rgb
 

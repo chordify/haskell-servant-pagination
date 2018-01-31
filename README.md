@@ -52,7 +52,8 @@ type MyHeaders = PageHeaders MyRange
 instance FromHttpApiData MyRange where
   parseUrlPiece = parseRange defaultOptions
 
-instance HasPagination MyResource "createdAt" UTCTime where
+instance HasPagination MyResource "createdAt" where
+  type PaginationType MyResource "createdAt" = UTCTime
   getRangeField _ = createdAt
 ```
 
