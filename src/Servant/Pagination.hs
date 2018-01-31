@@ -329,14 +329,8 @@ type TotalCount =
 -- response headers related to pagination.
 class KnownSymbol field => HasPagination resource field where
   type PaginationType resource field :: *
-  
-  (^.) :: resource -> Proxy field -> PaginationType resource field
-  default (^.) :: resource -> Proxy field -> PaginationType resource field
-  resource ^. field = getRangeField field resource
 
   getRangeField :: Proxy field -> resource -> PaginationType resource field
-  default getRangeField :: Proxy field -> resource -> PaginationType resource field
-  getRangeField field resource = resource ^. field
 
   returnPage_ :: forall m ranges.
     ( Monad m
@@ -361,8 +355,8 @@ class KnownSymbol field => HasPagination resource field where
           Proxy :: Proxy field
 
     let boundaries = (,)
-          <$> fmap (^. field) (Safe.headMay rs)
-          <*> fmap (^. field) (Safe.lastMay rs)
+          <$> fmap (getRangeField field) (Safe.headMay rs)
+          <*> fmap (getRangeField field) (Safe.lastMay rs)
 
     let acceptRanges =
           addHeader (AcceptRanges :: AcceptRanges ranges)
@@ -408,10 +402,10 @@ applyRange Range{..} =
     sortRel =
       case rangeOrder of
         RangeDesc ->
-          \a b -> compare (b ^. field) (a ^. field)
+          \a b -> compare (getRangeField field b) (getRangeField field a)
 
         RangeAsc ->
-          \a b -> compare (a ^. field) (b ^. field)
+          \a b -> compare (getRangeField field a) (getRangeField field b)
 
     dropRel =
       case (rangeValue, rangeOrder) of
@@ -419,10 +413,10 @@ applyRange Range{..} =
           const False
 
         (Just a, RangeDesc) ->
-          (>= a) . (^. field)
+          (>= a) . (getRangeField field)
 
         (Just a, RangeAsc) ->
-          (<= a) . (^. field)
+          (<= a) . (getRangeField field)
   in
       List.take rangeLimit
     . List.drop rangeOffset
