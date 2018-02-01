@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Main where
 
@@ -20,8 +20,8 @@ type NameRange =
   Range "name" String
 
 instance HasPagination Color "name" where
-  type PaginationType Color "name" = String
-  
+  type RangeType Color "name" = String
+
   getRangeField _ =
     name
 

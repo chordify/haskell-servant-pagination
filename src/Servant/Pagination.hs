@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Servant.Pagination
   (
@@ -54,7 +54,7 @@ module Servant.Pagination
   -- >   parseUrlPiece = parseRange defaultOptions
   -- >
   -- > instance HasPagination MyResource "createdAt" where
-  -- >   type PaginationType MyResource "createdAt" = UTCTime
+  -- >   type RangeType MyResource "createdAt" = UTCTime
   -- >   getRangeField _ = createdAt
   --
   -- That's it, the range is ready to use and to be declared in the Servant API. Additionally,
@@ -328,28 +328,28 @@ type TotalCount =
 -- `HasPagination` class provides `returnPage` to handle the plumbering of declaring
 -- response headers related to pagination.
 class KnownSymbol field => HasPagination resource field where
-  type PaginationType resource field :: *
+  type RangeType resource field :: *
 
-  getRangeField :: Proxy field -> resource -> PaginationType resource field
+  getRangeField :: Proxy field -> resource -> RangeType resource field
 
   returnPage_ :: forall m ranges.
     ( Monad m
-    , (Range field (PaginationType resource field)) :<: ranges
+    , (Range field (RangeType resource field)) :<: ranges
     , ToAcceptRanges ranges
     , ToHttpApiData (ContentRange ranges)
     , ToHttpApiData (NextRange ranges)
-    ) => (Range field (PaginationType resource field)) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
+    ) => (Range field (RangeType resource field)) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
   returnPage_ =
     returnPage Nothing
   {-# INLINE returnPage_ #-}
 
   returnPage :: forall m ranges.
     ( Monad m
-    , (Range field (PaginationType resource field)) :<: ranges
+    , (Range field (RangeType resource field)) :<: ranges
     , ToAcceptRanges ranges
     , ToHttpApiData (ContentRange ranges)
     , ToHttpApiData (NextRange ranges)
-    ) => TotalCount -> (Range field (PaginationType resource field)) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
+    ) => TotalCount -> (Range field (RangeType resource field)) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
   returnPage count range rs = do
     let field =
           Proxy :: Proxy field
@@ -371,13 +371,13 @@ class KnownSymbol field => HasPagination resource field where
 
       Just (start, end) -> do
         let rangeStart =
-              liftRange $ (range { rangeValue = Just start } :: Range field (PaginationType resource field))
+              liftRange $ (range { rangeValue = Just start } :: Range field (RangeType resource field))
 
         let rangeEnd =
-              liftRange $ (range { rangeValue = Just end } :: Range field (PaginationType resource field))
+              liftRange $ (range { rangeValue = Just end } :: Range field (RangeType resource field))
 
         let rangeNext =
-              liftRange $ (range { rangeValue = Just end, rangeOffset = 0 } :: Range field (PaginationType resource field))
+              liftRange $ (range { rangeValue = Just end, rangeOffset = 0 } :: Range field (RangeType resource field))
 
         let contentRange =
               addHeader $ ContentRange
@@ -393,7 +393,7 @@ class KnownSymbol field => HasPagination resource field where
 
 
 -- | Apply a range to a list of element
-applyRange :: forall b field. (HasPagination b field, Ord (PaginationType b field)) => Range field (PaginationType b field) -> [b] -> [b]
+applyRange :: forall b field. (HasPagination b field, Ord (RangeType b field)) => Range field (RangeType b field) -> [b] -> [b]
 applyRange Range{..} =
   let
     field =

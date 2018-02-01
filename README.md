@@ -53,7 +53,7 @@ instance FromHttpApiData MyRange where
   parseUrlPiece = parseRange defaultOptions
 
 instance HasPagination MyResource "createdAt" where
-  type PaginationType MyResource "createdAt" = UTCTime
+  type RangeType MyResource "createdAt" = UTCTime
   getRangeField _ = createdAt
 ```
 

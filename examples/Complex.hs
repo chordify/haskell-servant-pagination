@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Main where
 
@@ -28,7 +28,7 @@ instance FromHttpApiData NameRange where
     parseRange myOpts
 
 instance HasPagination Color "name" where
-  type PaginationType Color "name" = String
+  type RangeType Color "name" = String
   getRangeField _ =
     name
 
@@ -41,8 +41,8 @@ instance FromHttpApiData RGBRange where
     parseRange myOpts
 
 instance HasPagination Color "rgb" where
-  type PaginationType Color "rgb" = Int
-  
+  type RangeType Color "rgb" = Int
+
   getRangeField _ =
     sum . rgb
 
