@@ -255,6 +255,7 @@ class KnownSymbol field => HasPagination resource field where
     , ToAcceptRanges ranges
     , ToHttpApiData (ContentRange ranges)
     , ToHttpApiData (NextRange ranges)
+    , Ord (RangeType resource field)
     ) => (Range field (RangeType resource field)) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
   returnPage_ =
     returnPage Nothing
@@ -266,6 +267,7 @@ class KnownSymbol field => HasPagination resource field where
     , ToAcceptRanges ranges
     , ToHttpApiData (ContentRange ranges)
     , ToHttpApiData (NextRange ranges)
+    , Ord (RangeType resource field)
     ) => TotalCount -> (Range field (RangeType resource field)) -> [resource] -> m (Headers (PageHeaders ranges) [resource])
   returnPage count range rs = do
     let field =
@@ -293,8 +295,11 @@ class KnownSymbol field => HasPagination resource field where
         let rangeEnd =
               liftRange $ (range { rangeValue = Just end } :: Range field (RangeType resource field))
 
+        let nextOffset | rangeValue range `compare` Just end == EQ = rangeOffset range + length rs
+                       | otherwise = length $ takeWhile (\r -> getRangeField field r `compare` end == EQ) $ reverse rs
+        
         let rangeNext =
-              liftRange $ (range { rangeValue = Just end, rangeOffset = 0 } :: Range field (RangeType resource field))
+              liftRange $ (range { rangeValue = Just end, rangeOffset = nextOffset } :: Range field (RangeType resource field))
 
         let contentRange =
               addHeader $ ContentRange
@@ -330,10 +335,10 @@ applyRange Range{..} =
           const False
 
         (Just a, RangeDesc) ->
-          (>= a) . (getRangeField field)
+          (> a) . (getRangeField field)
 
         (Just a, RangeAsc) ->
-          (<= a) . (getRangeField field)
+          (< a) . (getRangeField field)
   in
       List.take rangeLimit
     . List.drop rangeOffset
