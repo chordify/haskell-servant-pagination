@@ -1,5 +1,4 @@
 :set prompt $>
-:set -XNoImplicitPrelude
 :set -XOverloadedStrings
 :set -XTupleSections
 :set -XGADTs
