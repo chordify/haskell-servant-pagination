@@ -3,7 +3,7 @@
 ## Overview
 
 This module offers opinionated helpers to declare a type-safe and a flexible pagination
-mecanism for Servant APIs. This design, inspired by [Heroku's API](https://devcenter.heroku.com/articles/platform-api-reference#ranges),
+mechanism for Servant APIs. This design, inspired by [Heroku's API](https://devcenter.heroku.com/articles/platform-api-reference#ranges),
 provides a small framework to communicate about a possible pagination feature of an endpoint,
 enabling a client to consume the API in different fashions (pagination with offset / limit,
 endless scroll using last referenced resources, ascending and descending ordering, etc.)
