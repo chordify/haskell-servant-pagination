@@ -1,8 +1,14 @@
 name:                servant-pagination
-description:         Type-safe pagination for Servant APIs
+synopsis:            Type-safe pagination for Servant APIs
+description:         This module offers opinionated helpers to declare a type-safe and a flexible pagination
+                     mecanism for Servant APIs. This design, inspired by Heroku's API, provides a small framework
+                     to communicate about a possible pagination feature of an endpoint, enabling a client to
+                     consume the API in different fashions (pagination with offset / limit, endless scroll using last
+                     referenced resources, ascending and descending ordering, etc.)
 version:             1.0.0
 homepage:            https://github.com/chordify/haskell-servant-pagination
-license:             LGPL-3.0
+bug-reports:         https://github.com/chordify/haskell-servant-pagination/issues
+license:             LGPL-3
 license-file:        LICENSE
 author:              Chordify
 maintainer:          Chordify <haskelldevelopers@chordify.net>, Matthias Benkort <matthias.benkort@gmail.com>
@@ -19,7 +25,7 @@ flag examples
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options:         -Wall -Werror -j4
+  ghc-options:         -Wall -j4
   default-extensions:  BangPatterns
                      , DefaultSignatures
                      , DataKinds
@@ -39,11 +45,11 @@ library
                      , ScopedTypeVariables
                      , TypeOperators
 
-  build-depends:       base
-                     , text
-                     , servant
-                     , servant-server
-                     , safe
+  build-depends:       base >= 4 && < 5
+                     , text >= 1.2 && < 2
+                     , servant >= 0.11 && < 1
+                     , servant-server >= 0.11 && < 1
+                     , safe >= 0.3 && < 1
 
   exposed-modules:     Servant.Pagination
                      , Servant.Pagination.Internal
@@ -54,7 +60,7 @@ executable servant-pagination-simple
   hs-source-dirs:      examples
   default-language:    Haskell2010
   main-is:             Simple.hs
-  ghc-options:         -Wall -Werror -j4 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -Wall -j4 -threaded -rtsopts -with-rtsopts=-N
 
   default-extensions:  BangPatterns
                      , DefaultSignatures
@@ -75,12 +81,12 @@ executable servant-pagination-simple
                      , ScopedTypeVariables
                      , TypeOperators
 
-  build-depends:       base
-                     , aeson
-                     , servant
-                     , servant-pagination
-                     , servant-server
-                     , warp
+  build-depends:       base >= 4 && < 5
+                     , aeson >= 1.2 && < 2
+                     , servant >= 0.11 && < 1
+                     , servant-pagination >= 1 && < 2
+                     , servant-server >= 0.11 && < 1
+                     , warp >= 3.2 && < 4
 
   other-modules:       Color
 
@@ -90,7 +96,7 @@ executable servant-pagination-complex
   hs-source-dirs:      examples
   default-language:    Haskell2010
   main-is:             Complex.hs
-  ghc-options:         -Wall -Werror -j4 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -Wall -j4 -threaded -rtsopts -with-rtsopts=-N
 
   default-extensions:  BangPatterns
                      , DefaultSignatures
@@ -111,11 +117,11 @@ executable servant-pagination-complex
                      , ScopedTypeVariables
                      , TypeOperators
 
-  build-depends:       base
-                     , aeson
-                     , servant
-                     , servant-pagination
-                     , servant-server
-                     , warp
+  build-depends:       base >= 4 && < 5
+                     , aeson >= 1.2 && < 2
+                     , servant >= 0.11 && < 1
+                     , servant-pagination >= 1 && < 2
+                     , servant-server >= 0.11 && < 1
+                     , warp >= 3.2 && < 4
 
   other-modules:       Color

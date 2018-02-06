@@ -1,4 +1,4 @@
-# servant-pagination
+# servant-pagination [![](https://img.shields.io/hackage/v/servant-pagination.svg)](https://hackage.haskell.org/package/servant-pagination)
 
 ## Overview
 
@@ -171,3 +171,12 @@ instance FromHttpApiData NameRange where
   parseUrlPiece =
     parseRange (defaultOptions { defaultRangeLimit = 5 })
 ```
+
+## Changelog
+
+[CHANGELOG.md](CHANGELOG.md)
+
+
+## License
+
+[LGPL-3 © 2018 Chordify](LICENSE)
