@@ -17,6 +17,10 @@ category:            Web
 build-type:          Simple
 cabal-version:       >=1.20
 
+source-repository head
+  type: git
+  location: git://github.com/chordify/haskell-servant-pagination.git
+
 flag examples
   description: build examples executables
   default: False
