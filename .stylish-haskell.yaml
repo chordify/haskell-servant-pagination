@@ -9,6 +9,7 @@ language_extensions:
   - DeriveGeneric
   - ExistentialQuantification
   - FlexibleContexts
+  - FlexibleInstances
   - GADTs
   - GeneralizedNewtypeDeriving
   - MultiParamTypeClasses
@@ -16,6 +17,8 @@ language_extensions:
   - RecordWildCards
   - ScopedTypeVariables
   - TupleSections
+  - TypeApplications
+  - TypeFamilies
   - TypeOperators
 steps:
   - simple_align:

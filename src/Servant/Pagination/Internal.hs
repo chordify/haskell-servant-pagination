@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Servant.Pagination.Internal where
 
@@ -9,11 +9,6 @@ import           Data.Text      (Text)
 import           Servant        (FromHttpApiData (..), ToHttpApiData (..))
 
 
--- | Helper to execute two `Either a b` successively
-orElse :: Either a b -> Either a b -> Either a b
-orElse a b =
-  either (const b) (const a) a
-{-# INLINE orElse #-}
 
 
 -- | Representation of AcceptRanges as a list of comma-separated text fields from the type
