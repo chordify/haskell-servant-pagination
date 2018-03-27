@@ -1,36 +1,34 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Main where
 
 import           Data.Maybe               (fromMaybe)
 import           Data.Proxy               (Proxy (..))
-import           Servant
-import           Servant.Pagination
+import           Servant                  ((:>), GetPartialContent, Header, Headers, JSON, Server)
+import           Servant.Pagination       (HasPagination (..), PageHeaders, Range, applyRange,
+                                           defaultRange, returnPage)
 
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Servant
 
 import           Color
 
 
---  Ranges definitions
-
--- | A range on the colors' name
-type NameRange =
-  Range "name" String
-
-instance HasPagination Color "name" where
-  type RangeType Color "name" = String
-
-  getRangeField _ =
-    name
-
 -- API
+
+-- | A range on the Color's name
+instance HasPagination Color String where
+  type FieldFor Color String = "name"
+  getField = name
+
+type Paginated res =
+  Headers (PageHeaders '[String] Color) res
 
 type API =
   "colors"
-    :> Header "Range" NameRange
-    :> GetPartialContent '[JSON] (Headers (PageHeaders NameRange) [Color])
+    :> Header "Range" (Range '[String] Color)
+    :> GetPartialContent '[JSON] (Paginated [Color])
 
 
 -- Application
@@ -38,13 +36,13 @@ type API =
 server :: Server API
 server mrange = do
   let range =
-        fromMaybe (defaultRange Nothing defaultOptions) mrange
+        fromMaybe (defaultRange (Nothing :: Maybe String)) mrange
 
-  returnPage (Just nColors) range (applyRange range colors)
+  returnPage range (applyRange range colors)
 
 main :: IO ()
 main =
-  Warp.run 1337 (serve (Proxy :: Proxy API) server)
+  Warp.run 1337 $ Servant.serve (Proxy @API) server
 
 
 -- Examples

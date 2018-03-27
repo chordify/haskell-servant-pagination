@@ -1,10 +1,9 @@
 module Color where
 
-import           Data.Aeson      (ToJSON)
-import           GHC.Generics    (Generic)
-import           Numeric.Natural (Natural)
+import           Data.Aeson   (ToJSON)
+import           GHC.Generics (Generic)
 
-import qualified Data.Aeson      as Aeson
+import qualified Data.Aeson   as Aeson
 
 
 data Color = Color
@@ -17,11 +16,6 @@ data Color = Color
 instance ToJSON Color where
   toJSON =
     Aeson.genericToJSON Aeson.defaultOptions
-
-
-nColors :: Natural
-nColors =
-  fromIntegral $ length colors
 
 
 colors :: [Color]
