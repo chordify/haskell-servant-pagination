@@ -1,61 +1,43 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Main where
 
+import           Data.Maybe               (fromMaybe)
 import           Data.Proxy               (Proxy (..))
-import           Servant
+import           Servant                  ((:>), GetPartialContent, Header, Headers, JSON, Server)
 import           Servant.Pagination
 
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Servant
 
 import           Color
 
 
---  Ranges definitions
-
--- | Custom options for ranges
-myOpts :: FromRangeOptions
-myOpts =
-  defaultOptions { defaultRangeLimit = 5, defaultRangeOrder = RangeAsc }
-
--- | A range on the colors' name
-type NameRange =
-  Range "name" String
-
-instance FromHttpApiData NameRange where
-  parseUrlPiece =
-    parseRange myOpts
-
-instance HasPagination Color "name" where
-  type RangeType Color "name" = String
-  getRangeField _ =
-    name
-
--- | A range on the sum of the rgb components of a color
-type RGBRange =
-  Range "rgb" Int
-
-instance FromHttpApiData RGBRange where
-  parseUrlPiece =
-    parseRange myOpts
-
-instance HasPagination Color "rgb" where
-  type RangeType Color "rgb" = Int
-
-  getRangeField _ =
-    sum . rgb
-
 
 -- API
 
+-- | A range on the Color's name
+instance HasPagination Color String where
+  type FieldFor Color String = "name"
+  getField = name
+
+instance HasPagination Color Int where
+  type FieldFor Color Int = "rgb"
+  getField = sum . rgb
+  paginationOptions _ = PaginationOptions
+    { defaultRangeLimit  = 5
+    , defaultRangeOffset = 0
+    , defaultRangeOrder  = RangeAsc
+    }
+
+type Paginated res =
+  Headers (PageHeaders '[String, Int] Color) res
+
 type API =
   "colors"
-    :> Header "Range" (NameRange :|: RGBRange)
-    :> GetPartialContent '[JSON] (Headers MyHeaders [Color])
-
-type MyHeaders =
-  PageHeaders (NameRange :|: RGBRange)
+    :> Header "Range" (Range '[String, Int] Color)
+    :> GetPartialContent '[JSON] (Paginated [Color])
 
 
 -- Application
@@ -63,22 +45,14 @@ type MyHeaders =
 server :: Server API
 server mrange = do
   let range =
-        defaultRange Nothing myOpts :: NameRange
+        fromMaybe (defaultRange (Nothing :: Maybe String)) mrange
 
-  case mrange of
-    Nothing ->
-      returnPage (Just nColors) range (applyRange range colors)
-
-    Just (InL nameRange) ->
-      returnPage (Just nColors) nameRange (applyRange nameRange colors)
-
-    Just (InR rgbRange) ->
-      returnPage (Just nColors) rgbRange (applyRange rgbRange colors)
+  returnPage range (applyRange range colors)
 
 
 main :: IO ()
 main =
-  Warp.run 1337 (serve (Proxy :: Proxy API) server)
+  Warp.run 1337 (Servant.serve (Proxy @API) server)
 
 
 -- Examples
