@@ -3,6 +3,7 @@
 
 module Main where
 
+import           Data.Maybe               (fromMaybe)
 import           Data.Proxy               (Proxy (..))
 import           Servant
 import           Servant.Pagination
@@ -14,31 +15,13 @@ import           Color
 
 --  Ranges definitions
 
--- | Custom options for ranges
-myOpts :: FromRangeOptions
-myOpts =
-  defaultOptions { defaultRangeLimit = 5, defaultRangeOrder = RangeAsc }
-
--- | A range on the colors' name
-type NameRange =
-  Range "name" String
-
-instance FromHttpApiData NameRange where
-  parseUrlPiece =
-    parseRange myOpts
-
 instance HasPagination Color "name" where
   type RangeType Color "name" = String
   getRangeField _ =
     name
 
--- | A range on the sum of the rgb components of a color
-type RGBRange =
-  Range "rgb" Int
-
-instance FromHttpApiData RGBRange where
-  parseUrlPiece =
-    parseRange myOpts
+  rangeOptions _ _ =
+    defaultOptions { defaultRangeLimit = 5, defaultRangeOrder = RangeAsc }
 
 instance HasPagination Color "rgb" where
   type RangeType Color "rgb" = Int
@@ -51,11 +34,11 @@ instance HasPagination Color "rgb" where
 
 type API =
   "colors"
-    :> Header "Range" (NameRange :|: RGBRange)
+    :> Header "Range" (Range '["name", "rgb"] Color)
     :> GetPartialContent '[JSON] (Headers MyHeaders [Color])
 
 type MyHeaders =
-  PageHeaders (NameRange :|: RGBRange)
+  PageHeaders '["name", "rgb"] Color
 
 
 -- Application
@@ -63,17 +46,9 @@ type MyHeaders =
 server :: Server API
 server mrange = do
   let range =
-        defaultRange Nothing myOpts :: NameRange
+        fromMaybe (defaultRange Nothing) mrange
 
-  case mrange of
-    Nothing ->
-      returnPage (Just nColors) range (applyRange range colors)
-
-    Just (InL nameRange) ->
-      returnPage (Just nColors) nameRange (applyRange nameRange colors)
-
-    Just (InR rgbRange) ->
-      returnPage (Just nColors) rgbRange (applyRange rgbRange colors)
+  returnPage (Just nColors) range (applyRange range colors)
 
 
 main :: IO ()
@@ -91,7 +66,7 @@ main =
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name,rgb
 -- < Content-Range: name Aqua..CadetBlue
--- < Next-Range: name CadetBlue;limit 5;offset 0;order asc
+-- < Next-Range: name CadetBlue;limit 5;offset 1;order asc
 -- < Total-Count: 59
 
 
@@ -103,8 +78,8 @@ main =
 -- < HTTP/1.1 206 Partial Content
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name,rgb
--- < Content-Range: rgb 0..128
--- < Next-Range: rgb 128;limit 5;offset 0;order asc
+-- < Content-Range: rgb 765..0
+-- < Next-Range: rgb 0;limit 100;offset 1;order desc
 -- < Total-Count: 59
 
 
@@ -116,6 +91,6 @@ main =
 -- < HTTP/1.1 206 Partial Content
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name,rgb
--- < Content-Range: name Fuchsia..DarkMagenta
--- < Next-Range: name DarkMagenta;limit 10;offset 0;order desc
+-- < Content-Range: name Green..DarkMagenta
+-- < Next-Range: name DarkMagenta;limit 10;offset 1;order desc
 -- < Total-Count: 59

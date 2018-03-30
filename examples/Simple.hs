@@ -15,10 +15,6 @@ import           Color
 
 --  Ranges definitions
 
--- | A range on the colors' name
-type NameRange =
-  Range "name" String
-
 instance HasPagination Color "name" where
   type RangeType Color "name" = String
 
@@ -29,8 +25,8 @@ instance HasPagination Color "name" where
 
 type API =
   "colors"
-    :> Header "Range" NameRange
-    :> GetPartialContent '[JSON] (Headers (PageHeaders NameRange) [Color])
+    :> Header "Range" (Range '["name"] Color)
+    :> GetPartialContent '[JSON] (Headers (PageHeaders '["name"] Color) [Color])
 
 
 -- Application
@@ -38,7 +34,7 @@ type API =
 server :: Server API
 server mrange = do
   let range =
-        fromMaybe (defaultRange Nothing defaultOptions) mrange
+        fromMaybe (defaultRange Nothing) mrange
 
   returnPage (Just nColors) range (applyRange range colors)
 
@@ -63,7 +59,7 @@ main =
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name
 -- < Content-Range: name Yellow..Aqua
--- < Next-Range: name Aqua;limit 100;offset 0;order desc
+-- < Next-Range: name Aqua;limit 100;offset 1;order desc
 -- < Total-Count: 59
 
 
