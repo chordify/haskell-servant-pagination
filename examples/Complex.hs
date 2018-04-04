@@ -1,8 +1,10 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies     #-}
 
 module Main where
 
+import           Control.Applicative      ((<|>))
 import           Data.Maybe               (fromMaybe)
 import           Data.Proxy               (Proxy (..))
 import           Servant
@@ -17,24 +19,22 @@ import           Color
 
 instance HasPagination Color "name" where
   type RangeType Color "name" = String
-  getRangeField _ =
-    name
-
-  rangeOptions _ _ =
-    defaultOptions { defaultRangeLimit = 5, defaultRangeOrder = RangeAsc }
+  getRangeField _  = name
+  getRangeOptions _ _ = defaultOptions
+    { defaultRangeLimit = 5
+    , defaultRangeOrder = RangeAsc
+    }
 
 instance HasPagination Color "rgb" where
   type RangeType Color "rgb" = Int
-
-  getRangeField _ =
-    sum . rgb
+  getRangeField _ = sum . rgb
 
 
 -- API
 
 type API =
   "colors"
-    :> Header "Range" (Range '["name", "rgb"] Color)
+    :> Header "Range" (Ranges '["name", "rgb"] Color)
     :> GetPartialContent '[JSON] (Headers MyHeaders [Color])
 
 type MyHeaders =
@@ -43,12 +43,23 @@ type MyHeaders =
 
 -- Application
 
-server :: Server API
-server mrange = do
-  let range =
-        fromMaybe (defaultRange Nothing) mrange
+defaultRange :: Range "name" String
+defaultRange =
+  getDefaultRange (Proxy @Color) Nothing
 
-  returnPage (Just nColors) range (applyRange range colors)
+server :: Server API
+server mrange =
+  fromMaybe (returnNameRange defaultRange) handler
+ where
+  handler =
+        fmap returnNameRange (mrange >>= getRange)
+    <|> fmap returnRGBRange  (mrange >>= getRange)
+
+  returnNameRange (range :: Range "name" String) =
+    returnRange range (applyRange range colors)
+
+  returnRGBRange (range :: Range "rgb" Int) =
+    returnRange range (applyRange range colors)
 
 
 main :: IO ()

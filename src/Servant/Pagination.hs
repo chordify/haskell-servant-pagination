@@ -1,27 +1,29 @@
-{-# LANGUAGE ConstraintKinds  #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE ConstraintKinds     #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
 
-module Servant.Pagination
-  (
-  -- * Types
-    Range(..)
-  , IsRangeType
-  , RangeOrder(..)
-  , AcceptRanges (..)
-  , ContentRange (..)
-  , PageHeaders
-  , mkRange
-
-  -- * Declare Ranges
-  , HasPagination(..)
-  , RangeOptions(..)
-  , defaultOptions
-
-  -- * Use Ranges
-  , returnPage
-  , applyRange
-  ) where
+module Servant.Pagination where
+--  (
+--  -- * Types
+--    Range(..)
+--  , IsRangeType
+--  , RangeOrder(..)
+--  , AcceptRanges (..)
+--  , ContentRange (..)
+--  , PageHeaders
+--  , mkRange
+--
+--  -- * Declare Ranges
+--  , HasPagination(..)
+--  , RangeOptions(..)
+--  , defaultOptions
+--
+--  -- * Use Ranges
+--  , returnPage
+--  , applyRange
+--  ) where
 
 import           Data.List      (filter, find)
 import           Data.Maybe     (listToMaybe)
@@ -35,6 +37,7 @@ import           Servant
 import qualified Data.List      as List
 import qualified Data.Text      as Text
 import qualified Safe
+
 
 --
 -- TYPES
@@ -50,32 +53,74 @@ type IsRangeType r =
   )
 
 -- An actual Range parsed from a `Range` header. A Range
-data Range (fields :: [Symbol]) typ =
-  forall field. (KnownSymbol field, HasPagination typ field, IsRangeType(RangeType typ field)) => Range
-  { rangeValue  :: Maybe (RangeType typ field)   -- ^ The value of that field, beginning of the range
+data Ranges :: [Symbol] -> * -> * where
+  Lift   :: Ranges fields typ -> Ranges (y ': fields) typ
+  Ranges ::
+   ( KnownSymbol field
+   , HasPagination typ field
+   , IsRangeType (RangeType typ field)
+   ) => Range field (RangeType typ field) -> Ranges (field ': fields) typ
+
+data Range (field :: Symbol) (a :: *) = Range
+  { rangeValue  :: Maybe a     -- ^ The value of that field, beginning of the range
   , rangeLimit  :: Int         -- ^ Maximum number of resources to return
   , rangeOffset :: Int         -- ^ Offset, number of resources to skip after the starting value
   , rangeOrder  :: RangeOrder  -- ^ The order of sorting (ascending or descending)
   , rangeField  :: Proxy field -- ^ Actual field this Range actually refers to
   }
 
-instance ToHttpApiData (Range fields typ) where
-  toUrlPiece Range{..} =
+class GetRange (fields :: [Symbol]) (field :: Symbol) where
+  getRange
+    :: (r ~ RangeType typ field, KnownSymbol field, HasPagination typ field, IsRangeType r)
+    => Ranges fields typ
+    -> Maybe (Range field r)
+
+instance GetRange (field ': fields) field where
+  getRange (Ranges r) = Just r
+  getRange (Lift _)   = Nothing
+
+instance {-# OVERLAPPABLE #-} GetRange fields field => GetRange (y ': fields) field where
+  getRange (Ranges _) = Nothing
+  getRange (Lift r)   = getRange r
+
+
+class PutRange (fields :: [Symbol]) (field :: Symbol) where
+  putRange
+    :: (r ~ RangeType typ field, KnownSymbol field, HasPagination typ field, IsRangeType r)
+    => Range field r
+    -> Ranges fields typ
+
+instance PutRange (field ': fields) field where
+  putRange = Ranges
+
+instance {-# OVERLAPPABLE #-} (PutRange fields field) => PutRange (y ': fields) field where
+  putRange = Lift . putRange
+
+
+instance ToHttpApiData (Ranges fields typ) where
+  toUrlPiece (Lift range) =
+    toUrlPiece range
+
+  toUrlPiece (Ranges Range{..}) =
     Text.pack (symbolVal rangeField)
     <> maybe "" (\v -> " " <> toUrlPiece v) rangeValue
     <> ";limit "  <> toUrlPiece rangeLimit
     <> ";offset " <> toUrlPiece rangeOffset
     <> ";order "  <> toUrlPiece rangeOrder
 
+instance FromHttpApiData (Ranges '[] typ) where
+  parseUrlPiece _ =
+    Left "Invalid Range"
+
 instance
-  ( FromHttpApiData (Range fields typ)
+  ( FromHttpApiData (Ranges fields typ)
   , KnownSymbol field
   , HasPagination typ field
   , IsRangeType (RangeType typ field)
-  ) => FromHttpApiData (Range (field ': fields) typ) where
+  ) => FromHttpApiData (Ranges (field ': fields) typ) where
   parseUrlPiece txt =
     let
-      RangeOptions{..} = rangeOptions (Proxy @typ) (Proxy @field)
+      RangeOptions{..} = getRangeOptions (Proxy @typ) (Proxy @field)
 
       toTuples =
         filter (/= "") . Text.splitOn (Text.singleton ' ')
@@ -91,15 +136,17 @@ instance
           opts <-
             traverse parseOpt rest
 
-          Range
+          range <- Range
             <$> sequence (fmap parseQueryParam (listToMaybe value))
             <*> ifOpt "limit"  defaultRangeLimit opts
             <*> ifOpt "offset" defaultRangeOffset opts
             <*> ifOpt "order"  defaultRangeOrder opts
             <*> pure (Proxy @field)
 
+          pure $ Ranges range
+
         _ -> -- recurse to other fields
-          liftRange <$> (parseUrlPiece txt :: Either Text (Range fields typ))
+          Lift <$> (parseUrlPiece txt :: Either Text (Ranges fields typ))
     where
       parseOpt :: [Text] -> Either Text (Text, Text)
       parseOpt piece =
@@ -139,7 +186,7 @@ instance FromHttpApiData RangeOrder where
 type PageHeaders (fields :: [Symbol]) typ =
   '[ Header "Accept-Ranges" (AcceptRanges fields)
    , Header "Content-Range" (ContentRange fields typ)
-   , Header "Next-Range"    (Range fields typ)
+   , Header "Next-Range"    (Ranges fields typ)
    ]
 
 -- | Accepted Ranges in the `Accept-Ranges` response's header
@@ -167,25 +214,6 @@ instance ToHttpApiData (ContentRange fields res) where
     Text.pack (symbolVal field) <> " " <> toUrlPiece start <> ".." <> toUrlPiece end
 
 
--- | Some default range based on the default options
-mkRange
-  :: forall field fields typ. (HasPagination typ field, IsRangeType (RangeType typ field))
-  => Maybe (RangeType typ field)
-  -> Range (field ': fields) typ
-mkRange val =
-  let
-    RangeOptions{..} =
-      rangeOptions (Proxy @typ) (Proxy @field)
-  in
-    Range
-      { rangeValue  = val
-      , rangeLimit  = defaultRangeLimit
-      , rangeOffset = defaultRangeOffset
-      , rangeOrder  = defaultRangeOrder
-      , rangeField  = Proxy @field
-      }
-
-
 --
 -- USE RANGES
 --
@@ -197,32 +225,36 @@ mkRange val =
 -- response headers related to pagination.
 class KnownSymbol field => HasPagination typ field where
   type RangeType typ field :: *
+
   getRangeField :: Proxy field -> typ -> RangeType typ field
-  rangeOptions :: Proxy typ -> Proxy field -> RangeOptions
-  rangeOptions _ _ = defaultOptions
 
+  getRangeOptions :: Proxy typ -> Proxy field -> RangeOptions
+  getRangeOptions _ _ = defaultOptions
 
--- | Default values to apply when parsing a Range
-data RangeOptions  = RangeOptions
-  { defaultRangeLimit  :: Int
-  , defaultRangeOffset :: Int
-  , defaultRangeOrder  :: RangeOrder
-  } deriving (Eq, Show)
+  getDefaultRange :: Proxy typ -> Maybe (RangeType typ field) -> Range field (RangeType typ field)
+  getDefaultRange _ val =
+    let
+      RangeOptions{..} = getRangeOptions (Proxy @typ) (Proxy @field)
+    in Range
+      { rangeValue  = val
+      , rangeLimit  = defaultRangeLimit
+      , rangeOffset = defaultRangeOffset
+      , rangeOrder  = defaultRangeOrder
+      , rangeField  = Proxy @field
+      }
 
-
--- | Some default options of default values for a Range (limit 100; offset 0; order desc)
-defaultOptions :: RangeOptions
-defaultOptions =
-  RangeOptions 100 0 RangeDesc
-
-
--- | Lift a list of result into a Monad (e.g. @Servant.Handler@) obtained from the given range, including a total count
-returnPage
-  :: (Monad m, ToHttpApiData (AcceptRanges fields))
-  => Range fields typ
+returnRange
+  :: ( Monad m
+     , ToHttpApiData (AcceptRanges fields)
+     , KnownSymbol field
+     , HasPagination typ field
+     , IsRangeType (RangeType typ field)
+     , PutRange fields field
+     )
+  => Range field (RangeType typ field)
   -> [typ]
   -> m (Headers (PageHeaders fields typ) [typ])
-returnPage Range{..} rs = do
+returnRange Range{..} rs = do
   let boundaries = (,)
         <$> fmap (getRangeField rangeField) (Safe.headMay rs)
         <*> fmap (getRangeField rangeField) (Safe.lastMay rs)
@@ -235,7 +267,7 @@ returnPage Range{..} rs = do
       let nextOffset | rangeValue == Just end = rangeOffset + length rs
                      | otherwise              = length $ takeWhile ((==) end . getRangeField rangeField) (reverse rs)
 
-      let nextRange = Range
+      let nextRange = putRange Range
             { rangeValue  = Just end
             , rangeLimit  = rangeLimit
             , rangeOffset = nextOffset
@@ -251,8 +283,23 @@ returnPage Range{..} rs = do
 
       return $ addHeader AcceptRanges $ addHeader contentRange $ addHeader nextRange rs
 
+-- | Default values to apply when parsing a Range
+data RangeOptions  = RangeOptions
+  { defaultRangeLimit  :: Int
+  , defaultRangeOffset :: Int
+  , defaultRangeOrder  :: RangeOrder
+  } deriving (Eq, Show)
 
-applyRange :: forall ranges res. Range ranges res -> [res] -> [res]
+
+-- | Some default options of default values for a Range (limit 100; offset 0; order desc)
+defaultOptions :: RangeOptions
+defaultOptions =
+  RangeOptions 100 0 RangeDesc
+
+
+applyRange
+  :: (KnownSymbol field, HasPagination typ field, IsRangeType (RangeType typ field))
+  => Range field (RangeType typ field) -> [typ] -> [typ]
 applyRange Range{..} =
   let
     sortRel =
@@ -278,18 +325,3 @@ applyRange Range{..} =
     . List.drop rangeOffset
     . List.dropWhile dropRel
     . List.sortBy sortRel
-
-
---
--- INTERNALS
---
-
--- | Lift a concrete range to a range over more fields
-liftRange :: Range fields typ -> Range (field ': fields) typ
-liftRange Range{..} = Range
-  { rangeValue  = rangeValue
-  , rangeLimit  = rangeLimit
-  , rangeOffset = rangeOffset
-  , rangeOrder  = rangeOrder
-  , rangeField  = rangeField
-  }

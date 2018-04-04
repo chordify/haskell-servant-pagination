@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies     #-}
 
 module Main where
 
@@ -15,28 +16,30 @@ import           Color
 
 --  Ranges definitions
 
-instance HasPagination Color "name" where
-  type RangeType Color "name" = String
-
-  getRangeField _ =
-    name
+instance HasPagination Color "patate" where
+  type RangeType Color "patate" = String
+  getRangeField _ = name
 
 -- API
 
 type API =
   "colors"
-    :> Header "Range" (Range '["name"] Color)
-    :> GetPartialContent '[JSON] (Headers (PageHeaders '["name"] Color) [Color])
+    :> Header "Range" (Ranges '["patate"] Color)
+    :> GetPartialContent '[JSON] (Headers (PageHeaders '["patate"] Color) [Color])
 
 
 -- Application
 
+defaultRange :: Range "patate" String
+defaultRange =
+  getDefaultRange (Proxy @Color) Nothing
+
 server :: Server API
 server mrange = do
   let range =
-        fromMaybe (defaultRange Nothing) mrange
+        fromMaybe defaultRange (mrange >>= getRange)
 
-  returnPage (Just nColors) range (applyRange range colors)
+  returnRange range (applyRange range colors)
 
 main :: IO ()
 main =
