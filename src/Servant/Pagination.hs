@@ -1,29 +1,122 @@
+-- | Opinionated Pagination Helpers for Servant APIs
+--
+--
+-- Client can provide a `Range` header with their request with the following format
+--
+-- > Range: <field> [<value>][; offset <o>][; limit <l>][; order <asc|desc>]
+--
+-- Available ranges are declared using type-level list of accepted fields, bound to a given
+-- resource and type using the 'HasPagination' type-class. The library provides unobtrusive
+-- types and abstract away all the plumbing to hook that on an existing Servant API.
+--
+-- The 'IsRangeType' constraints summarize all constraints that must apply to a possible field
+-- and heavily rely on the 'Web.Internal.FromHttpApiData' and 'Web.Internal.ToHttpApiData'.
+--
+-- > $ curl -v http://localhost:1337/colors -H 'Range: name; limit 10'
+-- >
+-- > > GET /colors HTTP/1.1
+-- > > Host: localhost:1337
+-- > > User-Agent: curl/7.47.0
+-- > > Accept: */*
+-- > >
+-- > < HTTP/1.1 206 Partial Content
+-- > < Transfer-Encoding: chunked
+-- > < Date: Tue, 30 Jan 2018 12:45:17 GMT
+-- > < Server: Warp/3.2.13
+-- > < Content-Type: application/json;charset=utf-8
+-- > < Accept-Ranges: name
+-- > < Content-Range: name Yellow..Purple
+-- > < Next-Range: name Purple;limit 10;offset 1;order desc
+--
+-- The 'Range' header is totally optional, but when provided, it indicates to the server what
+-- parts of the collection is requested. As a reponse and in addition to the data, the server may
+-- provide 3 headers to the client:
+--
+-- - @Accept-Ranges@: A comma-separated list of field upon which a range can be defined
+-- - @Content-Range@: Actual range corresponding to the content being returned
+-- - @Next-Range@: Indicate what should be the next `Range` header in order to retrieve the next range
+--
+-- This allows the client to work in a very _dumb_ mode where it simply consumes data from the server
+-- using the value of the 'Next-Range' header to fetch each new batch of data. The 'Accept-Ranges'
+-- comes in handy to self-document the API telling the client about the available filtering and sorting options
+-- of a resource.
+--
+-- Here's a minimal example used to obtained the previous behavior; Most of the magic happens in the
+-- 'returnRange' function which lift a collection of resources into a Servant handler, computing the
+-- corresponding ranges from the range used to retrieve the resources.
+--
+-- @
+-- -- Resource Type
+--
+-- data Color = Color
+--   { name :: 'String'
+--   , rgb  :: ['Int']
+--   , hex  :: 'String'
+--   } deriving ('Eq', 'Show', 'GHC.Generics.Generic')
+--
+-- colors :: [Color]
+-- colors = [ {- ... -} ]
+--
+-- -- Ranges definitions
+--
+-- instance 'HasPagination' Color "name" where
+--   type 'RangeType' Color "name" = 'String'
+--   'getFieldValue' _ = name
+--
+--
+-- -- API
+--
+-- type API =
+--   "colors"
+--     :> 'Servant.Header' \"Range\" ('Ranges' '["name"] Color)
+--     :> 'Servant.GetPartialContent' '['Servant.JSON'] ('Servant.Headers' ('PageHeaders' '["name"] Color) [Color])
+--
+--
+-- -- Application
+--
+-- defaultRange :: 'Range' "name" 'String'
+-- defaultRange =
+--   'getDefaultRange' ('Data.Proxy.Proxy' @Color) 'Data.Maybe.Nothing'
+--
+-- server :: 'Servant.Server.Server' API
+-- server mrange = do
+--   let range =
+--         'Data.Maybe.fromMaybe' defaultRange (mrange >>= 'extractRange')
+--
+--   'returnRange' range ('applyRange' range colors)
+--
+-- main :: 'IO' ()
+-- main =
+--   'Network.Wai.Handler.Warp.run' 1337 ('Servant.Server.serve' ('Data.Proxy.Proxy' @API) server)
+-- @
+
 {-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeFamilies        #-}
 
-module Servant.Pagination where
---  (
---  -- * Types
---    Range(..)
---  , IsRangeType
---  , RangeOrder(..)
---  , AcceptRanges (..)
---  , ContentRange (..)
---  , PageHeaders
---  , mkRange
---
---  -- * Declare Ranges
---  , HasPagination(..)
---  , RangeOptions(..)
---  , defaultOptions
---
---  -- * Use Ranges
---  , returnPage
---  , applyRange
---  ) where
+module Servant.Pagination
+  (
+  -- * Types
+  Ranges
+  , Range(..)
+  , RangeOrder(..)
+  , AcceptRanges (..)
+  , ContentRange (..)
+  , PageHeaders
+  , IsRangeType
+
+  -- * Declare Ranges
+  , HasPagination(..)
+  , RangeOptions(..)
+  , defaultOptions
+
+  -- * Use Ranges
+  , extractRange
+  , returnRange
+  , applyRange
+  ) where
 
 import           Data.List      (filter, find)
 import           Data.Maybe     (listToMaybe)
@@ -43,25 +136,32 @@ import qualified Safe
 -- TYPES
 --
 
--- | Set of constraints that apply to each types that can be target for a Range Header
-type IsRangeType r =
-  ( Show r
-  , Ord r
-  , Eq r
-  , FromHttpApiData r
-  , ToHttpApiData r
+-- | Set of constraints that must apply to every type target of a Range
+type IsRangeType a =
+  ( Show a
+  , Ord a
+  , Eq a
+  , FromHttpApiData a
+  , ToHttpApiData a
   )
 
--- An actual Range parsed from a `Range` header. A Range
+-- | A type to specify accepted Ranges via the @Range@ HTTP Header. For example:
+--
+-- @
+-- type API = "resources"
+--   :> 'Servant.Header' \"Range\" ('Ranges' '["created_at"] Resource)
+--   :> 'Servant.Get' '['Servant.JSON'] [Resource]
+-- @
 data Ranges :: [Symbol] -> * -> * where
-  Lift   :: Ranges fields typ -> Ranges (y ': fields) typ
-  Ranges ::
-   ( KnownSymbol field
-   , HasPagination typ field
-   , IsRangeType (RangeType typ field)
-   ) => Range field (RangeType typ field) -> Ranges (field ': fields) typ
+  Lift   :: Ranges fields resource -> Ranges (y ': fields) resource
+  Ranges
+    :: HasPagination resource field
+    => Range field (RangeType resource field)
+    -> Ranges (field ': fields) resource
 
-data Range (field :: Symbol) (a :: *) = Range
+-- | An actual 'Range' instance obtained from parsing / to generate a @Range@ HTTP Header.
+data Range (field :: Symbol) (a :: *) =
+  (KnownSymbol field, IsRangeType a) => Range
   { rangeValue  :: Maybe a     -- ^ The value of that field, beginning of the range
   , rangeLimit  :: Int         -- ^ Maximum number of resources to return
   , rangeOffset :: Int         -- ^ Offset, number of resources to skip after the starting value
@@ -69,26 +169,38 @@ data Range (field :: Symbol) (a :: *) = Range
   , rangeField  :: Proxy field -- ^ Actual field this Range actually refers to
   }
 
-class GetRange (fields :: [Symbol]) (field :: Symbol) where
-  getRange
-    :: (r ~ RangeType typ field, KnownSymbol field, HasPagination typ field, IsRangeType r)
-    => Ranges fields typ
-    -> Maybe (Range field r)
 
-instance GetRange (field ': fields) field where
-  getRange (Ranges r) = Just r
-  getRange (Lift _)   = Nothing
+-- | Extract a 'Range' from a 'Ranges'
+class ExtractRange (fields :: [Symbol]) (field :: Symbol) where
+  -- | Extract a 'Range' from a 'Ranges'. Works like a safe 'read', trying to coerce a 'Range' instance to
+  -- an expected type. Type annotation are most likely necessary to remove ambiguity. Note that a 'Range'
+  -- can only be extrated to a type bound by the allowed 'fields' on a given 'resource'.
+  --
+  -- @
+  -- extractDateRange :: 'Ranges' '["created_at", "name"] Resource -> 'Range' "created_at" 'Data.Time.Clock.UTCTime'
+  -- extractDateRange =
+  --   'extractRange'
+  -- @
+  extractRange
+    :: HasPagination resource field
+    => Ranges fields resource                         -- ^ A list of accepted Ranges for the API
+    -> Maybe (Range field (RangeType resource field)) -- ^ A Range instance of the expected type, if it matches
 
-instance {-# OVERLAPPABLE #-} GetRange fields field => GetRange (y ': fields) field where
-  getRange (Ranges _) = Nothing
-  getRange (Lift r)   = getRange r
+instance ExtractRange (field ': fields) field where
+  extractRange (Ranges r) = Just r
+  extractRange (Lift _)   = Nothing
+
+instance {-# OVERLAPPABLE #-} ExtractRange fields field => ExtractRange (y ': fields) field where
+  extractRange (Ranges _) = Nothing
+  extractRange (Lift r)   = extractRange r
 
 
+-- | Put a 'Range' in a 'Ranges'
 class PutRange (fields :: [Symbol]) (field :: Symbol) where
   putRange
-    :: (r ~ RangeType typ field, KnownSymbol field, HasPagination typ field, IsRangeType r)
-    => Range field r
-    -> Ranges fields typ
+    :: HasPagination resource field
+    => Range field (RangeType resource field)
+    -> Ranges fields resource
 
 instance PutRange (field ': fields) field where
   putRange = Ranges
@@ -97,7 +209,7 @@ instance {-# OVERLAPPABLE #-} (PutRange fields field) => PutRange (y ': fields) 
   putRange = Lift . putRange
 
 
-instance ToHttpApiData (Ranges fields typ) where
+instance ToHttpApiData (Ranges fields resource) where
   toUrlPiece (Lift range) =
     toUrlPiece range
 
@@ -108,19 +220,20 @@ instance ToHttpApiData (Ranges fields typ) where
     <> ";offset " <> toUrlPiece rangeOffset
     <> ";order "  <> toUrlPiece rangeOrder
 
-instance FromHttpApiData (Ranges '[] typ) where
+
+instance FromHttpApiData (Ranges '[] resource) where
   parseUrlPiece _ =
     Left "Invalid Range"
 
 instance
-  ( FromHttpApiData (Ranges fields typ)
+  ( FromHttpApiData (Ranges fields resource)
+  , HasPagination resource field
   , KnownSymbol field
-  , HasPagination typ field
-  , IsRangeType (RangeType typ field)
-  ) => FromHttpApiData (Ranges (field ': fields) typ) where
+  , IsRangeType (RangeType resource field)
+  ) => FromHttpApiData (Ranges (field ': fields) resource) where
   parseUrlPiece txt =
     let
-      RangeOptions{..} = getRangeOptions (Proxy @typ) (Proxy @field)
+      RangeOptions{..} = getRangeOptions (Proxy @resource) (Proxy @field)
 
       toTuples =
         filter (/= "") . Text.splitOn (Text.singleton ' ')
@@ -145,8 +258,8 @@ instance
 
           pure $ Ranges range
 
-        _ -> -- recurse to other fields
-          Lift <$> (parseUrlPiece txt :: Either Text (Ranges fields typ))
+        _ ->
+          Lift <$> (parseUrlPiece txt :: Either Text (Ranges fields resource))
     where
       parseOpt :: [Text] -> Either Text (Text, Text)
       parseOpt piece =
@@ -183,10 +296,19 @@ instance FromHttpApiData RangeOrder where
 
 
 -- | Type alias to declare response headers related to pagination
-type PageHeaders (fields :: [Symbol]) typ =
+--
+-- @
+-- type MyHeaders =
+--   'PageHeaders' '["created_at"] Resource
+--
+-- type API = "resources"
+--   :> 'Servant.Header' \"Range\" ('Ranges' '["created_at"] Resource)
+--   :> 'Servant.Get' '['Servant.JSON'] ('Servant.Headers' MyHeaders [Resource])
+-- @
+type PageHeaders (fields :: [Symbol]) (resource :: *) =
   '[ Header "Accept-Ranges" (AcceptRanges fields)
-   , Header "Content-Range" (ContentRange fields typ)
-   , Header "Next-Range"    (Ranges fields typ)
+   , Header "Content-Range" (ContentRange fields resource)
+   , Header "Next-Range"    (Ranges fields resource)
    ]
 
 -- | Accepted Ranges in the `Accept-Ranges` response's header
@@ -202,10 +324,10 @@ instance (ToHttpApiData (AcceptRanges (f ': fs)), KnownSymbol field) => ToHttpAp
 
 
 -- | Actual range returned, in the `Content-Range` response's header
-data ContentRange (fields :: [Symbol]) typ =
-  forall field. (KnownSymbol field, ToHttpApiData (RangeType typ field)) => ContentRange
-  { contentRangeStart :: RangeType typ field
-  , contentRangeEnd   :: RangeType typ field
+data ContentRange (fields :: [Symbol]) resource =
+  forall field. (KnownSymbol field, ToHttpApiData (RangeType resource field)) => ContentRange
+  { contentRangeStart :: RangeType resource field
+  , contentRangeEnd   :: RangeType resource field
   , contentRangeField :: Proxy field
   }
 
@@ -218,23 +340,29 @@ instance ToHttpApiData (ContentRange fields res) where
 -- USE RANGES
 --
 
--- | In addition to the `FromHttpApiData` instance, one can provide an instance for this
--- type-class to easily lift a list of response to a Servant handler.
--- By providing a getter to retrieve the value of an actual range from a resource, the
--- `HasPagination` class provides `returnPage` to handle the plumbering of declaring
--- response headers related to pagination.
-class KnownSymbol field => HasPagination typ field where
-  type RangeType typ field :: *
+-- | Available 'Range' on a given @resource@ must implements the 'HasPagination' type-class.
+-- This class defines how the library can interact with a given @resource@ to access the value
+-- to which a @field@ refers.
+class KnownSymbol field => HasPagination resource field where
+  type RangeType resource field :: *
 
-  getRangeField :: Proxy field -> typ -> RangeType typ field
+  -- | Get the corressponding value of a Resource
+  getFieldValue :: Proxy field -> resource -> RangeType resource field
 
-  getRangeOptions :: Proxy typ -> Proxy field -> RangeOptions
+  -- | Get parsing options for the 'Range' defined on this 'field'
+  getRangeOptions :: Proxy resource -> Proxy field -> RangeOptions
   getRangeOptions _ _ = defaultOptions
 
-  getDefaultRange :: Proxy typ -> Maybe (RangeType typ field) -> Range field (RangeType typ field)
+  -- | Create a default 'Range' from a value and default 'RangeOptions'. Typical use-case
+  -- is for when no or an invalid 'Range' header was provided.
+  getDefaultRange
+    :: IsRangeType (RangeType resource field)
+    => Proxy resource
+    -> Maybe (RangeType resource field)
+    -> Range field (RangeType resource field)
   getDefaultRange _ val =
     let
-      RangeOptions{..} = getRangeOptions (Proxy @typ) (Proxy @field)
+      RangeOptions{..} = getRangeOptions (Proxy @resource) (Proxy @field)
     in Range
       { rangeValue  = val
       , rangeLimit  = defaultRangeLimit
@@ -243,21 +371,35 @@ class KnownSymbol field => HasPagination typ field where
       , rangeField  = Proxy @field
       }
 
+-- | Lift an API response in a 'Monad', typically a 'Servant.Server.Handler'. 'Ranges' headers can be quite cumbersome to
+-- declare and can be deduced from the resources returned and the previous 'Range'. This is exactly what this function
+-- does.
+--
+-- @
+-- myHandler
+--  :: 'Maybe' ('Ranges' '["created_at"] Resource)
+--  -> 'Servant.Server.Handler' ('Servant.Headers' ('PageHeaders' '["created_at"] Resource) [Resource])
+-- myHandler mrange =
+--  let range =
+--        'Data.Maybe.fromMaybe' ('getDefaultRange' ('Data.Proxy.Proxy' @Resource)) (mrange >>= 'extractRange')
+--
+--  'returnRange' range ('applyRange' range resources)
+-- @
 returnRange
   :: ( Monad m
      , ToHttpApiData (AcceptRanges fields)
      , KnownSymbol field
-     , HasPagination typ field
-     , IsRangeType (RangeType typ field)
+     , HasPagination resource field
+     , IsRangeType (RangeType resource field)
      , PutRange fields field
      )
-  => Range field (RangeType typ field)
-  -> [typ]
-  -> m (Headers (PageHeaders fields typ) [typ])
+  => Range field (RangeType resource field)               -- ^ Actual 'Range' used to retrieve the results
+  -> [resource]                                           -- ^ Resources to returned, fetched from a db or a local store
+  -> m (Headers (PageHeaders fields resource) [resource]) -- ^ Resources embedded in a given 'Monad' (typically a 'Servant.Server.Handler', with pagination headers)
 returnRange Range{..} rs = do
   let boundaries = (,)
-        <$> fmap (getRangeField rangeField) (Safe.headMay rs)
-        <*> fmap (getRangeField rangeField) (Safe.lastMay rs)
+        <$> fmap (getFieldValue rangeField) (Safe.headMay rs)
+        <*> fmap (getFieldValue rangeField) (Safe.lastMay rs)
 
   case boundaries of
     Nothing ->
@@ -265,7 +407,7 @@ returnRange Range{..} rs = do
 
     Just (start, end) -> do
       let nextOffset | rangeValue == Just end = rangeOffset + length rs
-                     | otherwise              = length $ takeWhile ((==) end . getRangeField rangeField) (reverse rs)
+                     | otherwise              = length $ takeWhile ((==) end . getFieldValue rangeField) (reverse rs)
 
       let nextRange = putRange Range
             { rangeValue  = Just end
@@ -283,11 +425,11 @@ returnRange Range{..} rs = do
 
       return $ addHeader AcceptRanges $ addHeader contentRange $ addHeader nextRange rs
 
--- | Default values to apply when parsing a Range
+-- | Default values to apply when parsing a 'Range'
 data RangeOptions  = RangeOptions
-  { defaultRangeLimit  :: Int
-  , defaultRangeOffset :: Int
-  , defaultRangeOrder  :: RangeOrder
+  { defaultRangeLimit  :: Int         -- ^ Default limit if not provided, default to @100@
+  , defaultRangeOffset :: Int         -- ^ Default offset if not provided, default to @0@
+  , defaultRangeOrder  :: RangeOrder  -- ^ Default order if not provided, default to 'RangeDesc'
   } deriving (Eq, Show)
 
 
@@ -297,18 +439,23 @@ defaultOptions =
   RangeOptions 100 0 RangeDesc
 
 
+-- | Helper to apply a 'Range' to a list of values. Most likely useless in practice
+-- as results may come more realistically from a database, but useful for debugging or
+-- testing.
 applyRange
-  :: (KnownSymbol field, HasPagination typ field, IsRangeType (RangeType typ field))
-  => Range field (RangeType typ field) -> [typ] -> [typ]
+  :: HasPagination resource field
+  => Range field (RangeType resource field) -- ^ A 'Range' instance on a given @resource@
+  -> [resource]                             -- ^ A full-list of @resource@
+  -> [resource]                             -- ^ The sublist obtained by applying the 'Range'
 applyRange Range{..} =
   let
     sortRel =
       case rangeOrder of
         RangeDesc ->
-          \a b -> compare (getRangeField rangeField b) (getRangeField rangeField a)
+          \a b -> compare (getFieldValue rangeField b) (getFieldValue rangeField a)
 
         RangeAsc ->
-          \a b -> compare (getRangeField rangeField a) (getRangeField rangeField b)
+          \a b -> compare (getFieldValue rangeField a) (getFieldValue rangeField b)
 
     dropRel =
       case (rangeValue, rangeOrder) of
@@ -316,10 +463,10 @@ applyRange Range{..} =
           const False
 
         (Just a, RangeDesc) ->
-          (> a) . getRangeField rangeField
+          (> a) . getFieldValue rangeField
 
         (Just a, RangeAsc) ->
-          (< a) . getRangeField rangeField
+          (< a) . getFieldValue rangeField
   in
       List.take rangeLimit
     . List.drop rangeOffset
