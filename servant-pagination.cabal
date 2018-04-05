@@ -5,7 +5,7 @@ description:         This module offers opinionated helpers to declare a type-sa
                      to communicate about a possible pagination feature of an endpoint, enabling a client to
                      consume the API in different fashions (pagination with offset / limit, endless scroll using last
                      referenced resources, ascending and descending ordering, etc.)
-version:             1.0.0
+version:             2.0.0
 homepage:            https://github.com/chordify/haskell-servant-pagination
 bug-reports:         https://github.com/chordify/haskell-servant-pagination/issues
 license:             LGPL-3
@@ -16,6 +16,12 @@ copyright:           (c) 2018 Chordify
 category:            Web
 build-type:          Simple
 cabal-version:       >=1.20
+
+extra-source-files:  README.md
+                     CHANGELOG.md
+                     stack.yaml
+                     Setup.hs
+                     .stylish-haskell.yaml
 
 source-repository head
   type: git
@@ -51,8 +57,8 @@ library
 
   build-depends:       base >= 4 && < 5
                      , text >= 1.2 && < 2
-                     , servant >= 0.11 && < 1
-                     , servant-server >= 0.11 && < 1
+                     , servant >= 0.11 && <= 0.13
+                     , servant-server >= 0.11 && <= 0.13
                      , safe >= 0.3 && < 1
 
   exposed-modules:     Servant.Pagination
@@ -86,9 +92,9 @@ executable servant-pagination-simple
 
   build-depends:       base >= 4 && < 5
                      , aeson >= 1.2 && < 2
-                     , servant >= 0.11 && < 1
+                     , servant >= 0.11 && <= 0.13
                      , servant-pagination
-                     , servant-server >= 0.11 && < 1
+                     , servant-server >= 0.11 && <= 0.13
                      , warp >= 3.2 && < 4
 
   other-modules:       Color
@@ -122,9 +128,9 @@ executable servant-pagination-complex
 
   build-depends:       base >= 4 && < 5
                      , aeson >= 1.2 && < 2
-                     , servant >= 0.11 && < 1
+                     , servant >= 0.11 && <= 0.13
                      , servant-pagination
-                     , servant-server >= 0.11 && < 1
+                     , servant-server >= 0.11 && <= 0.13
                      , warp >= 3.2 && < 4
 
   other-modules:       Color
