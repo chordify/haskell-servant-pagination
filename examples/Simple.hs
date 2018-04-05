@@ -16,28 +16,28 @@ import           Color
 
 --  Ranges definitions
 
-instance HasPagination Color "patate" where
-  type RangeType Color "patate" = String
-  getRangeField _ = name
+instance HasPagination Color "name" where
+  type RangeType Color "name" = String
+  getFieldValue _ = name
 
 -- API
 
 type API =
   "colors"
-    :> Header "Range" (Ranges '["patate"] Color)
-    :> GetPartialContent '[JSON] (Headers (PageHeaders '["patate"] Color) [Color])
+    :> Header "Range" (Ranges '["name"] Color)
+    :> GetPartialContent '[JSON] (Headers (PageHeaders '["name"] Color) [Color])
 
 
 -- Application
 
-defaultRange :: Range "patate" String
+defaultRange :: Range "name" String
 defaultRange =
   getDefaultRange (Proxy @Color) Nothing
 
 server :: Server API
 server mrange = do
   let range =
-        fromMaybe defaultRange (mrange >>= getRange)
+        fromMaybe defaultRange (mrange >>= extractRange)
 
   returnRange range (applyRange range colors)
 
@@ -63,7 +63,6 @@ main =
 -- < Accept-Ranges: name
 -- < Content-Range: name Yellow..Aqua
 -- < Next-Range: name Aqua;limit 100;offset 1;order desc
--- < Total-Count: 59
 
 
 -- $ curl -v http://localhost:1337/colors --header 'Range: name; offset 59'
@@ -74,4 +73,3 @@ main =
 -- < HTTP/1.1 206 Partial Content
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name
--- < Total-Count: 59

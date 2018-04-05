@@ -10,6 +10,7 @@ import           Data.Proxy               (Proxy (..))
 import           Servant
 import           Servant.Pagination
 
+import qualified Data.Char                as Char
 import qualified Network.Wai.Handler.Warp as Warp
 
 import           Color
@@ -17,28 +18,36 @@ import           Color
 
 --  Ranges definitions
 
+-- By default, a Range relies on `defaultOptions` but any instance can define its own options
 instance HasPagination Color "name" where
   type RangeType Color "name" = String
-  getRangeField _  = name
+  getFieldValue _  = name
   getRangeOptions _ _ = defaultOptions
     { defaultRangeLimit = 5
     , defaultRangeOrder = RangeAsc
     }
 
+-- We can declare more than one range on a given type if they use different symbol field
+instance HasPagination Color "hex" where
+  type RangeType Color "hex" = String
+  getFieldValue _ = map Char.toUpper . hex
+
 instance HasPagination Color "rgb" where
   type RangeType Color "rgb" = Int
-  getRangeField _ = sum . rgb
+  getFieldValue _ = sum . rgb
 
 
 -- API
 
 type API =
   "colors"
-    :> Header "Range" (Ranges '["name", "rgb"] Color)
+    :> Header "Range" (Ranges '["name", "rgb", "hex"] Color)
     :> GetPartialContent '[JSON] (Headers MyHeaders [Color])
 
+-- PageHeaders fields resource ~ '[Header h typ], thus we can add extra headers
+-- as we desire.
 type MyHeaders =
-  PageHeaders '["name", "rgb"] Color
+  Header "Total-Count" Int ': PageHeaders '["name", "rgb", "hex"] Color
 
 
 -- Application
@@ -49,22 +58,32 @@ defaultRange =
 
 server :: Server API
 server mrange =
-  fromMaybe (returnNameRange defaultRange) handler
+  addHeader (length colors) <$> handler mrange
  where
-  handler =
-        fmap returnNameRange (mrange >>= getRange)
-    <|> fmap returnRGBRange  (mrange >>= getRange)
+  -- 'extractRange' tries to extract a range if it has the right type, and yields 'Nothing'
+  -- otherwise. We can use the '<|>' alternative combinator to try handlers one after
+  -- the other
+  handler r =
+    fromMaybe (returnNameRange defaultRange) $
+          fmap returnNameRange (r >>= extractRange)
+      <|> fmap returnRGBRange  (r >>= extractRange)
+      <|> fmap returnHexRange  (r >>= extractRange)
 
+  -- Handlers below are very simple, in practice, they're likely to trigger different functions
+  -- or database calls.
   returnNameRange (range :: Range "name" String) =
     returnRange range (applyRange range colors)
 
   returnRGBRange (range :: Range "rgb" Int) =
     returnRange range (applyRange range colors)
 
+  returnHexRange (range :: Range "hex" String) =
+    returnRange range (applyRange range colors)
+
 
 main :: IO ()
 main =
-  Warp.run 1337 (serve (Proxy :: Proxy API) server)
+  Warp.run 1337 (serve (Proxy @API) server)
 
 
 -- Examples
