@@ -1,12 +1,16 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies     #-}
 
 module Main where
 
+import           Control.Applicative      ((<|>))
+import           Data.Maybe               (fromMaybe)
 import           Data.Proxy               (Proxy (..))
 import           Servant
 import           Servant.Pagination
 
+import qualified Data.Char                as Char
 import qualified Network.Wai.Handler.Warp as Warp
 
 import           Color
@@ -14,71 +18,72 @@ import           Color
 
 --  Ranges definitions
 
--- | Custom options for ranges
-myOpts :: FromRangeOptions
-myOpts =
-  defaultOptions { defaultRangeLimit = 5, defaultRangeOrder = RangeAsc }
-
--- | A range on the colors' name
-type NameRange =
-  Range "name" String
-
-instance FromHttpApiData NameRange where
-  parseUrlPiece =
-    parseRange myOpts
-
+-- By default, a Range relies on `defaultOptions` but any instance can define its own options
 instance HasPagination Color "name" where
   type RangeType Color "name" = String
-  getRangeField _ =
-    name
+  getFieldValue _  = name
+  getRangeOptions _ _ = defaultOptions
+    { defaultRangeLimit = 5
+    , defaultRangeOrder = RangeAsc
+    }
 
--- | A range on the sum of the rgb components of a color
-type RGBRange =
-  Range "rgb" Int
-
-instance FromHttpApiData RGBRange where
-  parseUrlPiece =
-    parseRange myOpts
+-- We can declare more than one range on a given type if they use different symbol field
+instance HasPagination Color "hex" where
+  type RangeType Color "hex" = String
+  getFieldValue _ = map Char.toUpper . hex
 
 instance HasPagination Color "rgb" where
   type RangeType Color "rgb" = Int
-
-  getRangeField _ =
-    sum . rgb
+  getFieldValue _ = sum . rgb
 
 
 -- API
 
 type API =
   "colors"
-    :> Header "Range" (NameRange :|: RGBRange)
+    :> Header "Range" (Ranges '["name", "rgb", "hex"] Color)
     :> GetPartialContent '[JSON] (Headers MyHeaders [Color])
 
+-- PageHeaders fields resource ~ '[Header h typ], thus we can add extra headers
+-- as we desire.
 type MyHeaders =
-  PageHeaders (NameRange :|: RGBRange)
+  Header "Total-Count" Int ': PageHeaders '["name", "rgb", "hex"] Color
 
 
 -- Application
 
+defaultRange :: Range "name" String
+defaultRange =
+  getDefaultRange (Proxy @Color) Nothing
+
 server :: Server API
-server mrange = do
-  let range =
-        defaultRange Nothing myOpts :: NameRange
+server mrange =
+  addHeader (length colors) <$> handler mrange
+ where
+  -- 'extractRange' tries to extract a range if it has the right type, and yields 'Nothing'
+  -- otherwise. We can use the '<|>' alternative combinator to try handlers one after
+  -- the other
+  handler r =
+    fromMaybe (returnNameRange defaultRange) $
+          fmap returnNameRange (r >>= extractRange)
+      <|> fmap returnRGBRange  (r >>= extractRange)
+      <|> fmap returnHexRange  (r >>= extractRange)
 
-  case mrange of
-    Nothing ->
-      returnPage (Just nColors) range (applyRange range colors)
+  -- Handlers below are very simple, in practice, they're likely to trigger different functions
+  -- or database calls.
+  returnNameRange (range :: Range "name" String) =
+    returnRange range (applyRange range colors)
 
-    Just (InL nameRange) ->
-      returnPage (Just nColors) nameRange (applyRange nameRange colors)
+  returnRGBRange (range :: Range "rgb" Int) =
+    returnRange range (applyRange range colors)
 
-    Just (InR rgbRange) ->
-      returnPage (Just nColors) rgbRange (applyRange rgbRange colors)
+  returnHexRange (range :: Range "hex" String) =
+    returnRange range (applyRange range colors)
 
 
 main :: IO ()
 main =
-  Warp.run 1337 (serve (Proxy :: Proxy API) server)
+  Warp.run 1337 (serve (Proxy @API) server)
 
 
 -- Examples
@@ -91,7 +96,7 @@ main =
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name,rgb
 -- < Content-Range: name Aqua..CadetBlue
--- < Next-Range: name CadetBlue;limit 5;offset 0;order asc
+-- < Next-Range: name CadetBlue;limit 5;offset 1;order asc
 -- < Total-Count: 59
 
 
@@ -103,8 +108,8 @@ main =
 -- < HTTP/1.1 206 Partial Content
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name,rgb
--- < Content-Range: rgb 0..128
--- < Next-Range: rgb 128;limit 5;offset 0;order asc
+-- < Content-Range: rgb 765..0
+-- < Next-Range: rgb 0;limit 100;offset 1;order desc
 -- < Total-Count: 59
 
 
@@ -116,6 +121,6 @@ main =
 -- < HTTP/1.1 206 Partial Content
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name,rgb
--- < Content-Range: name Fuchsia..DarkMagenta
--- < Next-Range: name DarkMagenta;limit 10;offset 0;order desc
+-- < Content-Range: name Green..DarkMagenta
+-- < Next-Range: name DarkMagenta;limit 10;offset 1;order desc
 -- < Total-Count: 59

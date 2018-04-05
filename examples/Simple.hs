@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies     #-}
 
 module Main where
 
@@ -15,32 +16,30 @@ import           Color
 
 --  Ranges definitions
 
--- | A range on the colors' name
-type NameRange =
-  Range "name" String
-
 instance HasPagination Color "name" where
   type RangeType Color "name" = String
-
-  getRangeField _ =
-    name
+  getFieldValue _ = name
 
 -- API
 
 type API =
   "colors"
-    :> Header "Range" NameRange
-    :> GetPartialContent '[JSON] (Headers (PageHeaders NameRange) [Color])
+    :> Header "Range" (Ranges '["name"] Color)
+    :> GetPartialContent '[JSON] (Headers (PageHeaders '["name"] Color) [Color])
 
 
 -- Application
 
+defaultRange :: Range "name" String
+defaultRange =
+  getDefaultRange (Proxy @Color) Nothing
+
 server :: Server API
 server mrange = do
   let range =
-        fromMaybe (defaultRange Nothing defaultOptions) mrange
+        fromMaybe defaultRange (mrange >>= extractRange)
 
-  returnPage (Just nColors) range (applyRange range colors)
+  returnRange range (applyRange range colors)
 
 main :: IO ()
 main =
@@ -63,8 +62,7 @@ main =
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name
 -- < Content-Range: name Yellow..Aqua
--- < Next-Range: name Aqua;limit 100;offset 0;order desc
--- < Total-Count: 59
+-- < Next-Range: name Aqua;limit 100;offset 1;order desc
 
 
 -- $ curl -v http://localhost:1337/colors --header 'Range: name; offset 59'
@@ -75,4 +73,3 @@ main =
 -- < HTTP/1.1 206 Partial Content
 -- < Content-Type: application/json;charset=utf-8
 -- < Accept-Ranges: name
--- < Total-Count: 59
