@@ -2,20 +2,25 @@
 columns: 100
 language_extensions:
   - BangPatterns
-  - DefaultSignatures
+  - ConstraintKinds
   - DataKinds
+  - DefaultSignatures
   - DeriveDataTypeable
   - DeriveFunctor
   - DeriveGeneric
   - ExistentialQuantification
   - FlexibleContexts
+  - FlexibleInstances
   - GADTs
-  - GeneralizedNewtypeDeriving
+  - KindSignatures
   - MultiParamTypeClasses
   - OverloadedStrings
+  - ParallelListComp
   - RecordWildCards
   - ScopedTypeVariables
   - TupleSections
+  - TypeApplications
+  - TypeFamilies
   - TypeOperators
 steps:
   - simple_align:

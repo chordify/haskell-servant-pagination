@@ -89,13 +89,6 @@
 -- main =
 --   'Network.Wai.Handler.Warp.run' 1337 ('Servant.Server.serve' ('Data.Proxy.Proxy' @API) server)
 -- @
-
-{-# LANGUAGE ConstraintKinds     #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeFamilies        #-}
-
 module Servant.Pagination
   (
   -- * Types
@@ -136,7 +129,7 @@ import qualified Safe
 -- TYPES
 --
 
--- | Set of constraints that must apply to every type target of a Range
+-- | Set of constraints that must apply to every type target of a 'Range'
 type IsRangeType a =
   ( Show a
   , Ord a
@@ -174,7 +167,7 @@ data Range (field :: Symbol) (a :: *) =
 class ExtractRange (fields :: [Symbol]) (field :: Symbol) where
   -- | Extract a 'Range' from a 'Ranges'. Works like a safe 'read', trying to coerce a 'Range' instance to
   -- an expected type. Type annotation are most likely necessary to remove ambiguity. Note that a 'Range'
-  -- can only be extrated to a type bound by the allowed 'fields' on a given 'resource'.
+  -- can only be extracted to a type bound by the allowed 'fields' on a given 'resource'.
   --
   -- @
   -- extractDateRange :: 'Ranges' '["created_at", "name"] Resource -> 'Range' "created_at" 'Data.Time.Clock.UTCTime'
@@ -394,7 +387,7 @@ returnRange
      , PutRange fields field
      )
   => Range field (RangeType resource field)               -- ^ Actual 'Range' used to retrieve the results
-  -> [resource]                                           -- ^ Resources to returned, fetched from a db or a local store
+  -> [resource]                                           -- ^ Resources to return, fetched from a db or a local store
   -> m (Headers (PageHeaders fields resource) [resource]) -- ^ Resources embedded in a given 'Monad' (typically a 'Servant.Server.Handler', with pagination headers)
 returnRange Range{..} rs = do
   let boundaries = (,)
