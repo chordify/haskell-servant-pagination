@@ -153,6 +153,18 @@ data Ranges :: [Symbol] -> * -> * where
     => Range field (RangeType resource field)
     -> Ranges (field ': fields) resource
 
+instance (Show (Ranges '[] res)) where
+  showsPrec _ _ = flip mappend "Ranges"
+
+instance (Show (Ranges fields res)) => Show (Ranges (field ': fields) res) where
+  showsPrec prec (Lift r)   s = showsPrec prec r s
+  showsPrec prec (Ranges r) s =
+    let
+      inner = "Ranges@" ++ showsPrec 11 r s
+    in
+      if prec > 10 then "(" ++ inner ++ ")" else inner
+
+
 -- | An actual 'Range' instance obtained from parsing / to generate a @Range@ HTTP Header.
 data Range (field :: Symbol) (a :: *) =
   (KnownSymbol field, IsRangeType a) => Range
@@ -162,6 +174,30 @@ data Range (field :: Symbol) (a :: *) =
   , rangeOrder  :: RangeOrder  -- ^ The order of sorting (ascending or descending)
   , rangeField  :: Proxy field -- ^ Actual field this Range actually refers to
   }
+
+instance Eq (Range field a) where
+  (Range val0 lim0 off0 ord0 _) == (Range val1 lim1 off1 ord1 _) =
+       val0 == val1
+    && lim0 == lim1
+    && off0 == off1
+    && ord0 == ord1
+
+instance Show (Range field a) where
+  showsPrec prec Range{..} =
+    let
+      inner = "Range {" ++ args ++ "}"
+      args  = intercalate ", "
+        [ "rangeValue = "  ++ show rangeValue
+        , "rangeLimit = "  ++ show rangeLimit
+        , "rangeOffset = " ++ show rangeOffset
+        , "rangeOrder = "  ++ show rangeOrder
+        , "rangeField = "  ++ "\"" ++ symbolVal rangeField ++ "\""
+        ]
+    in
+      flip mappend $ if prec > 10 then
+        "(" ++ inner ++ ")"
+      else
+        inner
 
 
 -- | Extract a 'Range' from a 'Ranges'
