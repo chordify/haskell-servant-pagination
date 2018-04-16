@@ -76,7 +76,7 @@
 --
 -- defaultRange :: 'Range' "name" 'String'
 -- defaultRange =
---   'getDefaultRange' ('Data.Proxy.Proxy' @Color) 'Data.Maybe.Nothing'
+--   'getDefaultRange' ('Data.Proxy.Proxy' @Color)
 --
 -- server :: 'Servant.Server.Server' API
 -- server mrange = do
@@ -107,11 +107,12 @@ module Servant.Pagination
 
   -- * Use Ranges
   , extractRange
+  , putRange
   , returnRange
   , applyRange
   ) where
 
-import           Data.List      (filter, find)
+import           Data.List      (filter, find, intercalate)
 import           Data.Maybe     (listToMaybe)
 import           Data.Proxy     (Proxy (..))
 import           Data.Semigroup ((<>))
@@ -182,10 +183,12 @@ class ExtractRange (fields :: [Symbol]) (field :: Symbol) where
 instance ExtractRange (field ': fields) field where
   extractRange (Ranges r) = Just r
   extractRange (Lift _)   = Nothing
+  {-# INLINE extractRange #-}
 
 instance {-# OVERLAPPABLE #-} ExtractRange fields field => ExtractRange (y ': fields) field where
   extractRange (Ranges _) = Nothing
   extractRange (Lift r)   = extractRange r
+  {-# INLINE extractRange #-}
 
 
 -- | Put a 'Range' in a 'Ranges'
@@ -197,9 +200,11 @@ class PutRange (fields :: [Symbol]) (field :: Symbol) where
 
 instance PutRange (field ': fields) field where
   putRange = Ranges
+  {-# INLINE putRange #-}
 
 instance {-# OVERLAPPABLE #-} (PutRange fields field) => PutRange (y ': fields) field where
   putRange = Lift . putRange
+  {-# INLINE putRange #-}
 
 
 instance ToHttpApiData (Ranges fields resource) where
@@ -226,7 +231,7 @@ instance
   ) => FromHttpApiData (Ranges (field ': fields) resource) where
   parseUrlPiece txt =
     let
-      RangeOptions{..} = getRangeOptions (Proxy @resource) (Proxy @field)
+      RangeOptions{..} = getRangeOptions (Proxy @field) (Proxy @resource)
 
       toTuples =
         filter (/= "") . Text.splitOn (Text.singleton ' ')
@@ -343,7 +348,7 @@ class KnownSymbol field => HasPagination resource field where
   getFieldValue :: Proxy field -> resource -> RangeType resource field
 
   -- | Get parsing options for the 'Range' defined on this 'field'
-  getRangeOptions :: Proxy resource -> Proxy field -> RangeOptions
+  getRangeOptions :: Proxy field -> Proxy resource -> RangeOptions
   getRangeOptions _ _ = defaultOptions
 
   -- | Create a default 'Range' from a value and default 'RangeOptions'. Typical use-case
@@ -351,13 +356,12 @@ class KnownSymbol field => HasPagination resource field where
   getDefaultRange
     :: IsRangeType (RangeType resource field)
     => Proxy resource
-    -> Maybe (RangeType resource field)
     -> Range field (RangeType resource field)
-  getDefaultRange _ val =
+  getDefaultRange _ =
     let
-      RangeOptions{..} = getRangeOptions (Proxy @resource) (Proxy @field)
+      RangeOptions{..} = getRangeOptions (Proxy @field) (Proxy @resource)
     in Range
-      { rangeValue  = val
+      { rangeValue  = Nothing @(RangeType resource field)
       , rangeLimit  = defaultRangeLimit
       , rangeOffset = defaultRangeOffset
       , rangeOrder  = defaultRangeOrder
