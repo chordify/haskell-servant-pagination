@@ -16,7 +16,6 @@ copyright:           (c) 2018 Chordify
 category:            Web
 build-type:          Simple
 cabal-version:       >=1.20
-
 extra-source-files:  README.md
                      CHANGELOG.md
                      stack.yaml
@@ -37,8 +36,9 @@ library
   default-language:    Haskell2010
   ghc-options:         -Wall -j4
   default-extensions:  BangPatterns
-                     , DefaultSignatures
+                     , ConstraintKinds
                      , DataKinds
+                     , DefaultSignatures
                      , DeriveDataTypeable
                      , DeriveFunctor
                      , DeriveGeneric
@@ -51,8 +51,10 @@ library
                      , OverloadedStrings
                      , ParallelListComp
                      , RecordWildCards
-                     , TupleSections
                      , ScopedTypeVariables
+                     , TupleSections
+                     , TypeApplications
+                     , TypeFamilies
                      , TypeOperators
 
   build-depends:       base >= 4 && < 5
@@ -63,6 +65,7 @@ library
 
   exposed-modules:     Servant.Pagination
 
+
 executable servant-pagination-simple
   if !flag(examples)
     buildable: False
@@ -72,8 +75,9 @@ executable servant-pagination-simple
   ghc-options:         -Wall -j4 -threaded -rtsopts -with-rtsopts=-N
 
   default-extensions:  BangPatterns
-                     , DefaultSignatures
+                     , ConstraintKinds
                      , DataKinds
+                     , DefaultSignatures
                      , DeriveDataTypeable
                      , DeriveFunctor
                      , DeriveGeneric
@@ -86,8 +90,10 @@ executable servant-pagination-simple
                      , OverloadedStrings
                      , ParallelListComp
                      , RecordWildCards
-                     , TupleSections
                      , ScopedTypeVariables
+                     , TupleSections
+                     , TypeApplications
+                     , TypeFamilies
                      , TypeOperators
 
   build-depends:       base >= 4 && < 5
@@ -98,6 +104,7 @@ executable servant-pagination-simple
                      , warp >= 3.2 && < 4
 
   other-modules:       Color
+
 
 executable servant-pagination-complex
   if !flag(examples)
@@ -108,8 +115,9 @@ executable servant-pagination-complex
   ghc-options:         -Wall -j4 -threaded -rtsopts -with-rtsopts=-N
 
   default-extensions:  BangPatterns
-                     , DefaultSignatures
+                     , ConstraintKinds
                      , DataKinds
+                     , DefaultSignatures
                      , DeriveDataTypeable
                      , DeriveFunctor
                      , DeriveGeneric
@@ -122,8 +130,10 @@ executable servant-pagination-complex
                      , OverloadedStrings
                      , ParallelListComp
                      , RecordWildCards
-                     , TupleSections
                      , ScopedTypeVariables
+                     , TupleSections
+                     , TypeApplications
+                     , TypeFamilies
                      , TypeOperators
 
   build-depends:       base >= 4 && < 5
@@ -134,3 +144,43 @@ executable servant-pagination-complex
                      , warp >= 3.2 && < 4
 
   other-modules:       Color
+
+
+test-suite servant-pagination-test
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  ghc-options:         -Wall -Werror -j4
+
+  default-extensions:  BangPatterns
+                     , ConstraintKinds
+                     , DataKinds
+                     , DefaultSignatures
+                     , DeriveDataTypeable
+                     , DeriveFunctor
+                     , DeriveGeneric
+                     , ExistentialQuantification
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , GADTs
+                     , KindSignatures
+                     , MultiParamTypeClasses
+                     , OverloadedStrings
+                     , ParallelListComp
+                     , RecordWildCards
+                     , ScopedTypeVariables
+                     , TupleSections
+                     , TypeApplications
+                     , TypeFamilies
+                     , TypeOperators
+
+
+  build-depends:       base
+                     , servant-pagination
+                     , QuickCheck
+                     , hspec
+                     , servant-server
+                     , text
+
+  other-modules:       Servant.PaginationSpec
