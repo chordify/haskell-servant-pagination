@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.0 (2018-04-16) 
+
+- Add some tests (QuickCheck round-up & control some Ranges parsing)
+- Add `Show` and `Eq` instances for Ranges
+- Expose `putRange` function 
+- Review `getDefaultRange` signature (remove Maybe argument)
+
+
 ## v2.0.0 (2018-04-06)
 
 - Review internal implementation and public API (ditch Range combinator to favor type-level
