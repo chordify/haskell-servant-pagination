@@ -71,7 +71,7 @@ fetch the resources demanded by the client. To send the response, one can levera
 ```hs
 defaultRange :: Range "name" String
 defaultRange =
-  getDefaultRange (Proxy @Color) Nothing
+  getDefaultRange (Proxy @Color)
 
 server :: Maybe (Ranges '["name"] Color) -> Handler (Headers (PageHeaders '["name"] Color) [Color])
 server mrange = do
