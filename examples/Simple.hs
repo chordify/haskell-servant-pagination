@@ -32,7 +32,7 @@ type API =
 
 defaultRange :: Range "name" String
 defaultRange =
-  getDefaultRange (Proxy @Color) Nothing
+  getDefaultRange (Proxy @Color)
 
 server :: Server API
 server mrange = do

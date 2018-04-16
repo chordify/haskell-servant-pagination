@@ -76,7 +76,7 @@
 --
 -- defaultRange :: 'Range' "name" 'String'
 -- defaultRange =
---   'getDefaultRange' ('Data.Proxy.Proxy' @Color) 'Data.Maybe.Nothing'
+--   'getDefaultRange' ('Data.Proxy.Proxy' @Color)
 --
 -- server :: 'Servant.Server.Server' API
 -- server mrange = do
@@ -89,13 +89,6 @@
 -- main =
 --   'Network.Wai.Handler.Warp.run' 1337 ('Servant.Server.serve' ('Data.Proxy.Proxy' @API) server)
 -- @
-
-{-# LANGUAGE ConstraintKinds     #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeFamilies        #-}
-
 module Servant.Pagination
   (
   -- * Types
@@ -114,11 +107,12 @@ module Servant.Pagination
 
   -- * Use Ranges
   , extractRange
+  , putRange
   , returnRange
   , applyRange
   ) where
 
-import           Data.List      (filter, find)
+import           Data.List      (filter, find, intercalate)
 import           Data.Maybe     (listToMaybe)
 import           Data.Proxy     (Proxy (..))
 import           Data.Semigroup ((<>))
@@ -136,7 +130,7 @@ import qualified Safe
 -- TYPES
 --
 
--- | Set of constraints that must apply to every type target of a Range
+-- | Set of constraints that must apply to every type target of a 'Range'
 type IsRangeType a =
   ( Show a
   , Ord a
@@ -159,6 +153,18 @@ data Ranges :: [Symbol] -> * -> * where
     => Range field (RangeType resource field)
     -> Ranges (field ': fields) resource
 
+instance (Show (Ranges '[] res)) where
+  showsPrec _ _ = flip mappend "Ranges"
+
+instance (Show (Ranges fields res)) => Show (Ranges (field ': fields) res) where
+  showsPrec prec (Lift r)   s = showsPrec prec r s
+  showsPrec prec (Ranges r) s =
+    let
+      inner = "Ranges@" ++ showsPrec 11 r s
+    in
+      if prec > 10 then "(" ++ inner ++ ")" else inner
+
+
 -- | An actual 'Range' instance obtained from parsing / to generate a @Range@ HTTP Header.
 data Range (field :: Symbol) (a :: *) =
   (KnownSymbol field, IsRangeType a) => Range
@@ -169,12 +175,36 @@ data Range (field :: Symbol) (a :: *) =
   , rangeField  :: Proxy field -- ^ Actual field this Range actually refers to
   }
 
+instance Eq (Range field a) where
+  (Range val0 lim0 off0 ord0 _) == (Range val1 lim1 off1 ord1 _) =
+       val0 == val1
+    && lim0 == lim1
+    && off0 == off1
+    && ord0 == ord1
+
+instance Show (Range field a) where
+  showsPrec prec Range{..} =
+    let
+      inner = "Range {" ++ args ++ "}"
+      args  = intercalate ", "
+        [ "rangeValue = "  ++ show rangeValue
+        , "rangeLimit = "  ++ show rangeLimit
+        , "rangeOffset = " ++ show rangeOffset
+        , "rangeOrder = "  ++ show rangeOrder
+        , "rangeField = "  ++ "\"" ++ symbolVal rangeField ++ "\""
+        ]
+    in
+      flip mappend $ if prec > 10 then
+        "(" ++ inner ++ ")"
+      else
+        inner
+
 
 -- | Extract a 'Range' from a 'Ranges'
 class ExtractRange (fields :: [Symbol]) (field :: Symbol) where
   -- | Extract a 'Range' from a 'Ranges'. Works like a safe 'read', trying to coerce a 'Range' instance to
   -- an expected type. Type annotation are most likely necessary to remove ambiguity. Note that a 'Range'
-  -- can only be extrated to a type bound by the allowed 'fields' on a given 'resource'.
+  -- can only be extracted to a type bound by the allowed 'fields' on a given 'resource'.
   --
   -- @
   -- extractDateRange :: 'Ranges' '["created_at", "name"] Resource -> 'Range' "created_at" 'Data.Time.Clock.UTCTime'
@@ -189,10 +219,12 @@ class ExtractRange (fields :: [Symbol]) (field :: Symbol) where
 instance ExtractRange (field ': fields) field where
   extractRange (Ranges r) = Just r
   extractRange (Lift _)   = Nothing
+  {-# INLINE extractRange #-}
 
 instance {-# OVERLAPPABLE #-} ExtractRange fields field => ExtractRange (y ': fields) field where
   extractRange (Ranges _) = Nothing
   extractRange (Lift r)   = extractRange r
+  {-# INLINE extractRange #-}
 
 
 -- | Put a 'Range' in a 'Ranges'
@@ -204,9 +236,11 @@ class PutRange (fields :: [Symbol]) (field :: Symbol) where
 
 instance PutRange (field ': fields) field where
   putRange = Ranges
+  {-# INLINE putRange #-}
 
 instance {-# OVERLAPPABLE #-} (PutRange fields field) => PutRange (y ': fields) field where
   putRange = Lift . putRange
+  {-# INLINE putRange #-}
 
 
 instance ToHttpApiData (Ranges fields resource) where
@@ -233,7 +267,7 @@ instance
   ) => FromHttpApiData (Ranges (field ': fields) resource) where
   parseUrlPiece txt =
     let
-      RangeOptions{..} = getRangeOptions (Proxy @resource) (Proxy @field)
+      RangeOptions{..} = getRangeOptions (Proxy @field) (Proxy @resource)
 
       toTuples =
         filter (/= "") . Text.splitOn (Text.singleton ' ')
@@ -350,7 +384,7 @@ class KnownSymbol field => HasPagination resource field where
   getFieldValue :: Proxy field -> resource -> RangeType resource field
 
   -- | Get parsing options for the 'Range' defined on this 'field'
-  getRangeOptions :: Proxy resource -> Proxy field -> RangeOptions
+  getRangeOptions :: Proxy field -> Proxy resource -> RangeOptions
   getRangeOptions _ _ = defaultOptions
 
   -- | Create a default 'Range' from a value and default 'RangeOptions'. Typical use-case
@@ -358,13 +392,12 @@ class KnownSymbol field => HasPagination resource field where
   getDefaultRange
     :: IsRangeType (RangeType resource field)
     => Proxy resource
-    -> Maybe (RangeType resource field)
     -> Range field (RangeType resource field)
-  getDefaultRange _ val =
+  getDefaultRange _ =
     let
-      RangeOptions{..} = getRangeOptions (Proxy @resource) (Proxy @field)
+      RangeOptions{..} = getRangeOptions (Proxy @field) (Proxy @resource)
     in Range
-      { rangeValue  = val
+      { rangeValue  = Nothing @(RangeType resource field)
       , rangeLimit  = defaultRangeLimit
       , rangeOffset = defaultRangeOffset
       , rangeOrder  = defaultRangeOrder
@@ -394,7 +427,7 @@ returnRange
      , PutRange fields field
      )
   => Range field (RangeType resource field)               -- ^ Actual 'Range' used to retrieve the results
-  -> [resource]                                           -- ^ Resources to returned, fetched from a db or a local store
+  -> [resource]                                           -- ^ Resources to return, fetched from a db or a local store
   -> m (Headers (PageHeaders fields resource) [resource]) -- ^ Resources embedded in a given 'Monad' (typically a 'Servant.Server.Handler', with pagination headers)
 returnRange Range{..} rs = do
   let boundaries = (,)
