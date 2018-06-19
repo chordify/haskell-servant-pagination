@@ -59,8 +59,8 @@ library
 
   build-depends:       base >= 4 && < 5
                      , text >= 1.2 && < 2
-                     , servant >= 0.11 && <= 0.13
-                     , servant-server >= 0.11 && <= 0.13
+                     , servant >= 0.11 && < 0.15
+                     , servant-server >= 0.11 && < 0.15
                      , safe >= 0.3 && < 1
 
   exposed-modules:     Servant.Pagination
@@ -98,9 +98,9 @@ executable servant-pagination-simple
 
   build-depends:       base >= 4 && < 5
                      , aeson >= 1.2 && < 2
-                     , servant >= 0.11 && <= 0.13
+                     , servant >= 0.11 && < 0.15
                      , servant-pagination
-                     , servant-server >= 0.11 && <= 0.13
+                     , servant-server >= 0.11 && < 0.15
                      , warp >= 3.2 && < 4
 
   other-modules:       Color
@@ -138,9 +138,9 @@ executable servant-pagination-complex
 
   build-depends:       base >= 4 && < 5
                      , aeson >= 1.2 && < 2
-                     , servant >= 0.11 && <= 0.13
+                     , servant >= 0.11 && < 0.15
                      , servant-pagination
-                     , servant-server >= 0.11 && <= 0.13
+                     , servant-server >= 0.11 && < 0.15
                      , warp >= 3.2 && < 4
 
   other-modules:       Color
