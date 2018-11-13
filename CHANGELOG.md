@@ -1,8 +1,13 @@
 # Changelog
 
+## v2.1.2 (2018-11-13)
+
+- Allow servant-0.15
+
+
 ## v2.1.1 (2018-07-10)
 
-- Allow servant 0.14
+- Allow servant-0.14
 
 
 ## v2.1.0 (2018-04-16) 

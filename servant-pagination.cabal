@@ -5,7 +5,7 @@ description:         This module offers opinionated helpers to declare a type-sa
                      to communicate about a possible pagination feature of an endpoint, enabling a client to
                      consume the API in different fashions (pagination with offset / limit, endless scroll using last
                      referenced resources, ascending and descending ordering, etc.)
-version:             2.1.1
+version:             2.1.2
 homepage:            https://github.com/chordify/haskell-servant-pagination
 bug-reports:         https://github.com/chordify/haskell-servant-pagination/issues
 license:             LGPL-3
@@ -15,7 +15,7 @@ maintainer:          Chordify <haskelldevelopers@chordify.net>, Matthias Benkort
 copyright:           (c) 2018 Chordify
 category:            Web
 build-type:          Simple
-cabal-version:       >=1.20
+cabal-version:       1.20
 extra-source-files:  README.md
                      CHANGELOG.md
                      stack.yaml
@@ -34,7 +34,7 @@ flag examples
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options:         -Wall -j4
+  ghc-options:         -Wall
   default-extensions:  BangPatterns
                      , ConstraintKinds
                      , DataKinds
@@ -72,7 +72,7 @@ executable servant-pagination-simple
   hs-source-dirs:      examples
   default-language:    Haskell2010
   main-is:             Simple.hs
-  ghc-options:         -Wall -j4 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
 
   default-extensions:  BangPatterns
                      , ConstraintKinds
@@ -112,7 +112,7 @@ executable servant-pagination-complex
   hs-source-dirs:      examples
   default-language:    Haskell2010
   main-is:             Complex.hs
-  ghc-options:         -Wall -j4 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
 
   default-extensions:  BangPatterns
                      , ConstraintKinds
@@ -151,7 +151,7 @@ test-suite servant-pagination-test
   main-is:             Spec.hs
   type:                exitcode-stdio-1.0
   default-language:    Haskell2010
-  ghc-options:         -Wall -j4
+  ghc-options:         -Wall
 
   default-extensions:  BangPatterns
                      , ConstraintKinds
