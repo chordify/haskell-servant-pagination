@@ -1,186 +1,242 @@
-name:                servant-pagination
-synopsis:            Type-safe pagination for Servant APIs
-description:         This module offers opinionated helpers to declare a type-safe and a flexible pagination
-                     mecanism for Servant APIs. This design, inspired by Heroku's API, provides a small framework
-                     to communicate about a possible pagination feature of an endpoint, enabling a client to
-                     consume the API in different fashions (pagination with offset / limit, endless scroll using last
-                     referenced resources, ascending and descending ordering, etc.)
-version:             2.1.2
-homepage:            https://github.com/chordify/haskell-servant-pagination
-bug-reports:         https://github.com/chordify/haskell-servant-pagination/issues
-license:             LGPL-3
-license-file:        LICENSE
-author:              Chordify
-maintainer:          Chordify <haskelldevelopers@chordify.net>, Matthias Benkort <matthias.benkort@gmail.com>
-copyright:           (c) 2018 Chordify
-category:            Web
-build-type:          Simple
-cabal-version:       1.20
-extra-source-files:  README.md
-                     CHANGELOG.md
-                     stack.yaml
-                     Setup.hs
-                     .stylish-haskell.yaml
+name:
+    servant-pagination
+synopsis:
+    Type-safe pagination for Servant APIs
+description:
+    This module offers opinionated helpers to declare a type-safe and a
+    flexible pagination mecanism for Servant APIs. This design, inspired by
+    Heroku's API, provides a small framework to communicate about a possible
+    pagination feature of an endpoint, enabling a client to consume the API in
+    different fashions (pagination with offset / limit, endless scroll using
+    last referenced resources, ascending and descending ordering, etc.)
+version:
+    2.1.3
+homepage:
+    https://github.com/chordify/haskell-servant-pagination
+bug-reports:
+    https://github.com/chordify/haskell-servant-pagination/issues
+license:
+    LGPL-3
+license-file:
+    LICENSE
+author:
+    Chordify
+maintainer:
+    Chordify <haskelldevelopers@chordify.net>
+    Matthias Benkort <matthias.benkort@gmail.com>
+copyright:
+    (c) 2018 Chordify
+category:
+    Web
+build-type:
+    Simple
+cabal-version:
+    1.20
+extra-source-files:
+    README.md
+    CHANGELOG.md
+    stack.yaml
+    Setup.hs
+    .stylish-haskell.yaml
 
 source-repository head
-  type: git
-  location: git://github.com/chordify/haskell-servant-pagination.git
+  type:
+      git
+  location:
+      git://github.com/chordify/haskell-servant-pagination.git
 
 flag examples
-  description: build examples executables
-  default: False
-  manual: True
+  description:
+      build examples executables
+  default:
+      False
+  manual:
+      True
+
 
 library
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-  ghc-options:         -Wall
-  default-extensions:  BangPatterns
-                     , ConstraintKinds
-                     , DataKinds
-                     , DefaultSignatures
-                     , DeriveDataTypeable
-                     , DeriveFunctor
-                     , DeriveGeneric
-                     , ExistentialQuantification
-                     , FlexibleContexts
-                     , FlexibleInstances
-                     , GADTs
-                     , KindSignatures
-                     , MultiParamTypeClasses
-                     , OverloadedStrings
-                     , ParallelListComp
-                     , RecordWildCards
-                     , ScopedTypeVariables
-                     , TupleSections
-                     , TypeApplications
-                     , TypeFamilies
-                     , TypeOperators
+  default-language:
+    Haskell2010
+  ghc-options:
+    -Wall
+  default-extensions:
+      BangPatterns
+    , ConstraintKinds
+    , DataKinds
+    , DefaultSignatures
+    , DeriveDataTypeable
+    , DeriveFunctor
+    , DeriveGeneric
+    , ExistentialQuantification
+    , FlexibleContexts
+    , FlexibleInstances
+    , GADTs
+    , KindSignatures
+    , MultiParamTypeClasses
+    , OverloadedStrings
+    , ParallelListComp
+    , RecordWildCards
+    , ScopedTypeVariables
+    , TupleSections
+    , TypeApplications
+    , TypeFamilies
+    , TypeOperators
+    , UndecidableInstances
 
-  build-depends:       base >= 4 && < 5
-                     , text >= 1.2 && < 2
-                     , servant >= 0.11 && < 0.16
-                     , servant-server >= 0.11 && < 0.16
-                     , safe >= 0.3 && < 1
+  build-depends:
+      base >= 4 && < 5
+    , text >= 1.2 && < 2
+    , servant >= 0.11 && < 0.16
+    , servant-server >= 0.11 && < 0.16
+    , safe >= 0.3 && < 1
 
-  exposed-modules:     Servant.Pagination
+  hs-source-dirs:
+    src
+  exposed-modules:
+    Servant.Pagination
 
 
 executable servant-pagination-simple
   if !flag(examples)
     buildable: False
-  hs-source-dirs:      examples
-  default-language:    Haskell2010
-  main-is:             Simple.hs
-  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
 
-  default-extensions:  BangPatterns
-                     , ConstraintKinds
-                     , DataKinds
-                     , DefaultSignatures
-                     , DeriveDataTypeable
-                     , DeriveFunctor
-                     , DeriveGeneric
-                     , ExistentialQuantification
-                     , FlexibleContexts
-                     , FlexibleInstances
-                     , GADTs
-                     , KindSignatures
-                     , MultiParamTypeClasses
-                     , OverloadedStrings
-                     , ParallelListComp
-                     , RecordWildCards
-                     , ScopedTypeVariables
-                     , TupleSections
-                     , TypeApplications
-                     , TypeFamilies
-                     , TypeOperators
+  default-language:
+      Haskell2010
+  ghc-options:
+      -Wall
+      -threaded
+      -rtsopts
+      -with-rtsopts=-N
+  default-extensions:
+      BangPatterns
+    , ConstraintKinds
+    , DataKinds
+    , DefaultSignatures
+    , DeriveDataTypeable
+    , DeriveFunctor
+    , DeriveGeneric
+    , ExistentialQuantification
+    , FlexibleContexts
+    , FlexibleInstances
+    , GADTs
+    , KindSignatures
+    , MultiParamTypeClasses
+    , OverloadedStrings
+    , ParallelListComp
+    , RecordWildCards
+    , ScopedTypeVariables
+    , TupleSections
+    , TypeApplications
+    , TypeFamilies
+    , TypeOperators
 
-  build-depends:       base >= 4 && < 5
-                     , aeson >= 1.2 && < 2
-                     , servant >= 0.11 && < 0.16
-                     , servant-pagination
-                     , servant-server >= 0.11 && < 0.16
-                     , warp >= 3.2 && < 4
+  build-depends:
+      base >= 4 && < 5
+    , aeson >= 1.2 && < 2
+    , servant >= 0.11 && < 0.16
+    , servant-pagination
+    , servant-server >= 0.11 && < 0.16
+    , warp >= 3.2 && < 4
 
-  other-modules:       Color
+  hs-source-dirs:
+      examples
+  main-is:
+      Simple.hs
+  other-modules:
+      Color
 
 
 executable servant-pagination-complex
   if !flag(examples)
     buildable: False
-  hs-source-dirs:      examples
-  default-language:    Haskell2010
-  main-is:             Complex.hs
-  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
 
-  default-extensions:  BangPatterns
-                     , ConstraintKinds
-                     , DataKinds
-                     , DefaultSignatures
-                     , DeriveDataTypeable
-                     , DeriveFunctor
-                     , DeriveGeneric
-                     , ExistentialQuantification
-                     , FlexibleContexts
-                     , FlexibleInstances
-                     , GADTs
-                     , KindSignatures
-                     , MultiParamTypeClasses
-                     , OverloadedStrings
-                     , ParallelListComp
-                     , RecordWildCards
-                     , ScopedTypeVariables
-                     , TupleSections
-                     , TypeApplications
-                     , TypeFamilies
-                     , TypeOperators
+  default-language:
+      Haskell2010
+  ghc-options:
+      -Wall
+      -threaded
+      -rtsopts
+      -with-rtsopts=-N
+  default-extensions:
+      BangPatterns
+    , ConstraintKinds
+    , DataKinds
+    , DefaultSignatures
+    , DeriveDataTypeable
+    , DeriveFunctor
+    , DeriveGeneric
+    , ExistentialQuantification
+    , FlexibleContexts
+    , FlexibleInstances
+    , GADTs
+    , KindSignatures
+    , MultiParamTypeClasses
+    , OverloadedStrings
+    , ParallelListComp
+    , RecordWildCards
+    , ScopedTypeVariables
+    , TupleSections
+    , TypeApplications
+    , TypeFamilies
+    , TypeOperators
 
-  build-depends:       base >= 4 && < 5
-                     , aeson >= 1.2 && < 2
-                     , servant >= 0.11 && < 0.15
-                     , servant-pagination
-                     , servant-server >= 0.11 && < 0.15
-                     , warp >= 3.2 && < 4
+  build-depends:
+      base >= 4 && < 5
+    , aeson >= 1.2 && < 2
+    , servant >= 0.11 && < 0.15
+    , servant-pagination
+    , servant-server >= 0.11 && < 0.15
+    , warp >= 3.2 && < 4
 
-  other-modules:       Color
+  hs-source-dirs:
+      examples
+  main-is:
+      Complex.hs
+  other-modules:
+      Color
 
 
 test-suite servant-pagination-test
-  hs-source-dirs:      test
-  main-is:             Spec.hs
-  type:                exitcode-stdio-1.0
-  default-language:    Haskell2010
-  ghc-options:         -Wall
+  type:
+      exitcode-stdio-1.0
+  default-language:
+      Haskell2010
+  ghc-options:
+      -Wall
+  default-extensions:
+      BangPatterns
+    , ConstraintKinds
+    , DataKinds
+    , DefaultSignatures
+    , DeriveDataTypeable
+    , DeriveFunctor
+    , DeriveGeneric
+    , ExistentialQuantification
+    , FlexibleContexts
+    , FlexibleInstances
+    , GADTs
+    , KindSignatures
+    , MultiParamTypeClasses
+    , OverloadedStrings
+    , ParallelListComp
+    , RecordWildCards
+    , ScopedTypeVariables
+    , TupleSections
+    , TypeApplications
+    , TypeFamilies
+    , TypeOperators
 
-  default-extensions:  BangPatterns
-                     , ConstraintKinds
-                     , DataKinds
-                     , DefaultSignatures
-                     , DeriveDataTypeable
-                     , DeriveFunctor
-                     , DeriveGeneric
-                     , ExistentialQuantification
-                     , FlexibleContexts
-                     , FlexibleInstances
-                     , GADTs
-                     , KindSignatures
-                     , MultiParamTypeClasses
-                     , OverloadedStrings
-                     , ParallelListComp
-                     , RecordWildCards
-                     , ScopedTypeVariables
-                     , TupleSections
-                     , TypeApplications
-                     , TypeFamilies
-                     , TypeOperators
+  build-depends:
+      base
+    , hspec
+    , QuickCheck
+    , servant-pagination
+    , servant-server
+    , text
 
-
-  build-depends:       base
-                     , servant-pagination
-                     , QuickCheck
-                     , hspec
-                     , servant-server
-                     , text
-
-  other-modules:       Servant.PaginationSpec
+  hs-source-dirs:
+      test
+  main-is:
+      Spec.hs
+  other-modules:
+      Servant.PaginationSpec

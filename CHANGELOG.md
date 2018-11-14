@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.3 (2018-11-14)
+
+- Fix Haddock generation
+
 ## v2.1.2 (2018-11-13)
 
 - Allow servant-0.15
