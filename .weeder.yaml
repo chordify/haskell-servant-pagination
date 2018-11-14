@@ -1,0 +1,7 @@
+- package:
+  - name: ''
+  - section:
+    - name: exe:servant-pagination-complex exe:servant-pagination-simple
+    - message:
+      - name: Module reused between components
+      - module: Color

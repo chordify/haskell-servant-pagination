@@ -1,0 +1,46 @@
+sudo: false
+
+language: generic
+
+cache:
+  timeout: 1337
+  directories:
+  - $HOME/.stack
+  - $HOME/.local
+  - $HOME/.ghc
+
+branches:
+  only:
+  - master
+
+env:
+  global:
+  - PATH=$HOME/.local/bin:$PATH
+
+stages:
+  - action
+
+before_install:
+  - mkdir -p $HOME/.local/bin
+  - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+
+install:
+  - travis_wait 42 stack --no-terminal --install-ghc build --fast --only-dependencies
+
+jobs:
+  include:
+  - stage: action
+    env: ACTION=hlint
+    scripts:
+    - curl -sL https://raw.github.com/ndmitchell/hlint/master/misc/travis.sh | sh -s . --cpp-define=__GLASGOW_HASKELL__=800 --cpp-define=x86_64_HOST_ARCH=1 --cpp-define=mingw32_HOST_OS=1
+
+  - stage: action
+    env: ACTION=weeder
+    script:
+    - travis_wait 42 stack --no-terminal test --no-run-tests --fast --flag servant-pagination:examples
+    - curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+
+  - stage: action
+    env: ACTION=tests
+    script:
+    - travis_wait 42 stack --no-terminal test --fast --coverage
