@@ -135,7 +135,7 @@ type API =
     :> GetPartialContent '[JSON] (Headers MyHeaders [Color])
 
 type MyHeaders =
-  Header "Total-Count" Int :> PageHeaders '["name"] Color
+  Header "Total-Count" Int ': PageHeaders '["name"] Color
 ```
 
 `PageHeaders` is a type alias provided by the library to declare the necessary response headers
