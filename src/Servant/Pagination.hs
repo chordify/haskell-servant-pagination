@@ -117,6 +117,7 @@ import           Data.Maybe     (listToMaybe)
 import           Data.Proxy     (Proxy (..))
 import           Data.Semigroup ((<>))
 import           Data.Text      (Text)
+import           Network.URI.Encode (encodeText,decodeText)
 import           GHC.Generics   (Generic)
 import           GHC.TypeLits   (KnownSymbol, Symbol, symbolVal)
 import           Servant
@@ -249,7 +250,7 @@ instance ToHttpApiData (Ranges fields resource) where
 
   toUrlPiece (Ranges Range{..}) =
     Text.pack (symbolVal rangeField)
-    <> maybe "" (\v -> " " <> toUrlPiece v) rangeValue
+    <> maybe "" (\v -> " " <> (encodeText . toUrlPiece) v) rangeValue
     <> ";limit "  <> toUrlPiece rangeLimit
     <> ";offset " <> toUrlPiece rangeOffset
     <> ";order "  <> toUrlPiece rangeOrder
@@ -284,7 +285,7 @@ instance
             traverse parseOpt rest
 
           range <- Range
-            <$> sequence (fmap parseQueryParam (listToMaybe value))
+            <$> sequence (fmap (parseUrlPiece . decodeText) (listToMaybe value))
             <*> ifOpt "limit"  defaultRangeLimit opts
             <*> ifOpt "offset" defaultRangeOffset opts
             <*> ifOpt "order"  defaultRangeOrder opts
@@ -367,7 +368,7 @@ data ContentRange (fields :: [Symbol]) resource =
 
 instance ToHttpApiData (ContentRange fields res) where
   toUrlPiece (ContentRange start end field) =
-    Text.pack (symbolVal field) <> " " <> toUrlPiece start <> ".." <> toUrlPiece end
+    Text.pack (symbolVal field) <> " " <> (encodeText . toUrlPiece) start <> ".." <> (encodeText . toUrlPiece) end
 
 
 --
