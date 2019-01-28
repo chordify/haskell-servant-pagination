@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.2.0 (2018-11-14)
+
+- Use URL encoding for range values to properly support strings.
+
 ## v2.1.3 (2018-11-14)
 
 - Fix Haddock generation

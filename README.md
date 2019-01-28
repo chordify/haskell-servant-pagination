@@ -12,7 +12,7 @@ Therefore, client can provide a `Range` header with their request with the follo
 
 - `Range: <field> [<value>][; offset <o>][; limit <l>][; order <asc|desc>]`
 
-For example: `Range: createdAt 2017-01-15T23:14:67.000Z; offset 5; order desc` indicates that
+For example: `Range: createdAt 2017-01-15T23%3A14%3A67.000Z; offset 5; order desc` indicates that
 the client is willing to retrieve the next batch of document in descending order that were
 created after the fifteenth of January, skipping the first 5.
 
@@ -26,8 +26,8 @@ response with 3 headers:
 For example:
 
 - `Accept-Ranges: createdAt, modifiedAt`
-- `Content-Range: createdAt 2017-01-15T23:14:51.000Z..2017-02-18T06:10:23.000Z`
-- `Next-Range: createdAt 2017-02-19T12:56:28.000Z; offset 0; limit 100; order desc`
+- `Content-Range: createdAt 2017-01-15T23%3A14%3A51.000Z..2017-02-18T06%3A10%3A23.000Z`
+- `Next-Range: createdAt 2017-02-19T12%3A56%3A28.000Z; offset 0; limit 100; order desc`
 
 
 ## Getting Started
