@@ -1,12 +1,19 @@
 # Changelog
 
-## v2.2.0 (2018-11-14)
+## v2.2.1 (2019-02-28)
+
+- Allow server-0.16
+
+
+## v2.2.0 (2019-01-28)
 
 - Use URL encoding for range values to properly support strings.
+
 
 ## v2.1.3 (2018-11-14)
 
 - Fix Haddock generation
+
 
 ## v2.1.2 (2018-11-13)
 
