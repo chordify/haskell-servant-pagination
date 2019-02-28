@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.2.2 (2019-02-28)
+
+- (oversight) Allow server-0.16 in executables
+
+
 ## v2.2.1 (2019-02-28)
 
 - Allow server-0.16
