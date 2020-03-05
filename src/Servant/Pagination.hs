@@ -288,7 +288,7 @@ instance
             traverse parseOpt rest
 
           range <- Range
-            <$> sequence (fmap (parseUrlPiece . decodeText) (listToMaybe value))
+            <$> mapM (parseUrlPiece . decodeText) (listToMaybe value)
             <*> ifOpt "limit"  defaultRangeLimit opts
             <*> ifOpt "offset" defaultRangeOffset opts
             <*> ifOpt "order"  defaultRangeOrder opts
