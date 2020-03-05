@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.3.0 (2020-03-05)
+
+- Allow server-0.17 in executables
+- Bump stack LTS to 14.25
+
 ## v2.2.2 (2019-02-28)
 
 - (oversight) Allow server-0.16 in executables
