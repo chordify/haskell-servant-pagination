@@ -75,10 +75,8 @@ library
     , MultiParamTypeClasses
     , OverloadedStrings
     , ParallelListComp
-    , RecordWildCards
     , ScopedTypeVariables
     , TupleSections
-    , TypeApplications
     , TypeFamilies
     , TypeOperators
     , UndecidableInstances
@@ -124,10 +122,8 @@ executable servant-pagination-simple
     , MultiParamTypeClasses
     , OverloadedStrings
     , ParallelListComp
-    , RecordWildCards
     , ScopedTypeVariables
     , TupleSections
-    , TypeApplications
     , TypeFamilies
     , TypeOperators
 
@@ -174,10 +170,8 @@ executable servant-pagination-complex
     , MultiParamTypeClasses
     , OverloadedStrings
     , ParallelListComp
-    , RecordWildCards
     , ScopedTypeVariables
     , TupleSections
-    , TypeApplications
     , TypeFamilies
     , TypeOperators
 
@@ -220,10 +214,8 @@ test-suite servant-pagination-test
     , MultiParamTypeClasses
     , OverloadedStrings
     , ParallelListComp
-    , RecordWildCards
     , ScopedTypeVariables
     , TupleSections
-    , TypeApplications
     , TypeFamilies
     , TypeOperators
 

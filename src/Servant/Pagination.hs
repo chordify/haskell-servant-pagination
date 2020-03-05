@@ -1,3 +1,6 @@
+{-# LANGUAGE RecordWildCards  #-}
+{-# LANGUAGE TypeApplications #-}
+
 -- | Opinionated Pagination Helpers for Servant APIs
 --
 --
@@ -112,18 +115,18 @@ module Servant.Pagination
   , applyRange
   ) where
 
-import           Data.List      (filter, find, intercalate)
-import           Data.Maybe     (listToMaybe)
-import           Data.Proxy     (Proxy (..))
-import           Data.Semigroup ((<>))
-import           Data.Text      (Text)
-import           Network.URI.Encode (encodeText,decodeText)
-import           GHC.Generics   (Generic)
-import           GHC.TypeLits   (KnownSymbol, Symbol, symbolVal)
+import           Data.List          (filter, find, intercalate)
+import           Data.Maybe         (listToMaybe)
+import           Data.Proxy         (Proxy (..))
+import           Data.Semigroup     ((<>))
+import           Data.Text          (Text)
+import           GHC.Generics       (Generic)
+import           GHC.TypeLits       (KnownSymbol, Symbol, symbolVal)
+import           Network.URI.Encode (decodeText, encodeText)
 import           Servant
 
-import qualified Data.List      as List
-import qualified Data.Text      as Text
+import qualified Data.List          as List
+import qualified Data.Text          as Text
 import qualified Safe
 
 
