@@ -109,8 +109,8 @@ module Servant.Pagination
   , defaultOptions
 
   -- * Use Ranges
-  , extractRange
-  , putRange
+  , ExtractRange(..)
+  , PutRange(..)
   , returnRange
   , applyRange
   ) where
