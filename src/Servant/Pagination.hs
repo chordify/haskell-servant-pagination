@@ -79,7 +79,7 @@
 --
 -- defaultRange :: 'Range' "name" 'String'
 -- defaultRange =
---   'getDefaultRange' ('Data.Proxy.Proxy' @Color)
+--   'getDefaultRange' ('Data.Proxy.Proxy' \@Color)
 --
 -- server :: 'Servant.Server.Server' API
 -- server mrange = do
@@ -90,7 +90,7 @@
 --
 -- main :: 'IO' ()
 -- main =
---   'Network.Wai.Handler.Warp.run' 1337 ('Servant.Server.serve' ('Data.Proxy.Proxy' @API) server)
+--   'Network.Wai.Handler.Warp.run' 1337 ('Servant.Server.serve' ('Data.Proxy.Proxy' \@API) server)
 -- @
 module Servant.Pagination
   (
@@ -418,7 +418,7 @@ class KnownSymbol field => HasPagination resource field where
 --  -> 'Servant.Server.Handler' ('Servant.Headers' ('PageHeaders' '["created_at"] Resource) [Resource])
 -- myHandler mrange =
 --  let range =
---        'Data.Maybe.fromMaybe' ('getDefaultRange' ('Data.Proxy.Proxy' @Resource)) (mrange >>= 'extractRange')
+--        'Data.Maybe.fromMaybe' ('getDefaultRange' ('Data.Proxy.Proxy' \@Resource)) (mrange >>= 'extractRange')
 --
 --  'returnRange' range ('applyRange' range resources)
 -- @
