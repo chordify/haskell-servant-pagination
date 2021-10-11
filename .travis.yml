@@ -33,7 +33,7 @@ jobs:
     env: ACTION=hlint
     scripts:
     - travis_wait 42 stack --no-terminal install hlint
-    - travis_wait 42 stack --no-terminal exec hlint -- --cpp-define=__GLASGOW_HASKELL__=800 --cpp-define=x86_64_HOST_ARCH=1 --cpp-define=mingw32_HOST_OS=1
+    - travis_wait 42 stack --no-terminal exec hlint -- . --cpp-define=__GLASGOW_HASKELL__=800 --cpp-define=x86_64_HOST_ARCH=1 --cpp-define=mingw32_HOST_OS=1
 
   - stage: action
     env: ACTION=weeder
