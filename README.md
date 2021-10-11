@@ -1,4 +1,4 @@
-# servant-pagination [![](https://img.shields.io/hackage/v/servant-pagination.svg)](https://hackage.haskell.org/package/servant-pagination) [![Build Status](https://travis-ci.org/chordify/haskell-servant-pagination.svg?branch=master)](https://travis-ci.org/chordify/haskell-servant-pagination)
+# servant-pagination [![](https://img.shields.io/hackage/v/servant-pagination.svg)](https://hackage.haskell.org/package/servant-pagination) [![Build Status](https://travis-ci.com/chordify/haskell-servant-pagination.svg?branch=master)](https://app.travis-ci.com/github/chordify/haskell-servant-pagination)
 
 ## Overview
 
