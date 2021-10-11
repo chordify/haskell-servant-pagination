@@ -289,7 +289,7 @@ instance
 
           range <- Range
             <$> mapM (parseUrlPiece . decodeText) (listToMaybe value)
-            <*> ifOpt "limit"  defaultRangeLimit opts
+            <*> (ifOpt "limit"  defaultRangeLimit opts >>= checkLimit)
             <*> ifOpt "offset" defaultRangeOffset opts
             <*> ifOpt "order"  defaultRangeOrder opts
             <*> pure (Proxy @field)
@@ -312,6 +312,10 @@ instance
       ifOpt opt def =
         maybe (pure def) (parseQueryParam . snd) . find ((== opt) . fst)
 
+      checkLimit :: Int -> Either Text Int
+      checkLimit n
+        | n < 0     = Left "Limit must be non-negative"
+        | otherwise = return n
 
 -- | Define the sorting order of the paginated resources (ascending or descending)
 data RangeOrder
