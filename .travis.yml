@@ -22,7 +22,7 @@ stages:
 
 before_install:
   - mkdir -p $HOME/.local/bin
-  - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+  - travis_retry curl -L -k https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
 
 install:
   - travis_wait 42 stack --no-terminal --install-ghc build --fast --only-dependencies
@@ -32,7 +32,8 @@ jobs:
   - stage: action
     env: ACTION=hlint
     scripts:
-    - curl -sL https://raw.github.com/ndmitchell/hlint/master/misc/travis.sh | sh -s . --cpp-define=__GLASGOW_HASKELL__=800 --cpp-define=x86_64_HOST_ARCH=1 --cpp-define=mingw32_HOST_OS=1
+    - travis_wait 42 stack --no-terminal install hlint
+    - travis_wait 42 stack --no-terminal exec hlint -- . --cpp-define=__GLASGOW_HASKELL__=800 --cpp-define=x86_64_HOST_ARCH=1 --cpp-define=mingw32_HOST_OS=1
 
   - stage: action
     env: ACTION=weeder
