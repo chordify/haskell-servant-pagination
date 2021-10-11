@@ -1,7 +1,9 @@
 # Changelog
 
-## v2.4.0 (2021-10-11)
+## v2.4.1 (2021-10-11)
 - Fix Travis CI
+
+## v2.4.0 (2021-10-11)
 - Update servant package bounds
 - Forbid negative values for limit
 
