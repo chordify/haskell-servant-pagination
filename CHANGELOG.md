@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.4.0 (2021-10-11)
+- Fix Travis CI
+- Update servant package bounds
+- Forbid negative values for limit
+
 ## v2.3.0 (2020-03-05)
 
 - Allow server-0.17 in executables
