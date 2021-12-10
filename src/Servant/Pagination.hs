@@ -464,7 +464,10 @@ returnRange Range{..} rs = do
             , contentRangeField = rangeField
             }
 
-      return $ addHeader AcceptRanges $ addHeader contentRange $ addHeader nextRange rs
+      let addNextRange | length rs < rangeLimit = noHeader
+                       | otherwise              = addHeader nextRange
+
+      return $ addHeader AcceptRanges $ addHeader contentRange $ addNextRange rs
 
 -- | Default values to apply when parsing a 'Range'
 data RangeOptions  = RangeOptions
