@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.4.2 (2021-12-10)
+- Don't return Next-Range upon partial response
+
 ## v2.4.1 (2021-10-11)
 - Fix Travis CI
 
