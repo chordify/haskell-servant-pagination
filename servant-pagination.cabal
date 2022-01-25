@@ -10,7 +10,7 @@ description:
     different fashions (pagination with offset / limit, endless scroll using
     last referenced resources, ascending and descending ordering, etc.)
 version:
-    2.4.2
+    2.4.3
 homepage:
     https://github.com/chordify/haskell-servant-pagination
 bug-reports:
