@@ -83,9 +83,9 @@ library
 
   build-depends:
       base >= 4 && < 5
-    , text >= 1.2 && < 2
-    , servant >= 0.11 && < 0.19
-    , servant-server >= 0.11 && < 0.19
+    , text >= 1.2 && < 2.1
+    , servant >= 0.11 && < 0.20
+    , servant-server >= 0.11 && < 0.20
     , safe >= 0.3 && < 1
     , uri-encode >= 1.5 && < 1.6
 
