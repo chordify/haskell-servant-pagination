@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.5.0 (2022-03-09)
+- Allow text-2.0 and servant-0.19 #20
+- Expose PutRange so we can use this in integrations #18
+
 ## v2.4.2 (2021-12-10)
 - Don't return Next-Range upon partial response
 
