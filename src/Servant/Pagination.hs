@@ -113,6 +113,7 @@ module Servant.Pagination
   -- * Use Ranges
   , extractRange
   , putRange
+  , addPageHeaders
   , returnRange
   , applyRange
   ) where
@@ -414,9 +415,11 @@ class KnownSymbol field => HasPagination resource field where
       , rangeField  = Proxy @field
       }
 
--- | Lift an API response in a 'Monad', typically a 'Servant.Server.Handler'. 'Ranges' headers can be quite cumbersome to
--- declare and can be deduced from the resources returned and the previous 'Range'. This is exactly what this function
--- does.
+-- | Add headers representing a 'Range' to a list of resources.
+--
+-- 'Ranges' headers can be quite cumbersome to declare and can be deduced from a
+-- collection of resources together with the 'Range' used to retrieve it, so this function
+-- is a shortcut for that.
 --
 -- @
 -- myHandler
@@ -426,11 +429,10 @@ class KnownSymbol field => HasPagination resource field where
 --  let range =
 --        'Data.Maybe.fromMaybe' ('getDefaultRange' ('Data.Proxy.Proxy' \@Resource)) (mrange >>= 'extractRange')
 --
---  'returnRange' range ('applyRange' range resources)
+--  'return' ('addPageHeaders' range ('applyRange' range resources))
 -- @
-returnRange
-  :: ( Monad m
-     , ToHttpApiData (AcceptRanges fields)
+addPageHeaders
+  :: ( ToHttpApiData (AcceptRanges fields)
      , KnownSymbol field
      , HasPagination resource field
      , IsRangeType (RangeType resource field)
@@ -438,15 +440,14 @@ returnRange
      )
   => Range field (RangeType resource field)               -- ^ Actual 'Range' used to retrieve the results
   -> [resource]                                           -- ^ Resources to return, fetched from a db or a local store
-  -> m (Headers (PageHeaders fields resource) [resource]) -- ^ Resources embedded in a given 'Monad' (typically a 'Servant.Server.Handler', with pagination headers)
-returnRange Range{..} rs = do
+  -> Headers (PageHeaders fields resource) [resource]     -- ^ The same resources, but with pagination headers
+addPageHeaders Range{..} rs =
   let boundaries = (,)
         <$> fmap (getFieldValue rangeField) (Safe.headMay rs)
         <*> fmap (getFieldValue rangeField) (Safe.lastMay rs)
-
-  case boundaries of
+  in case boundaries of
     Nothing ->
-      return $ addHeader AcceptRanges $ noHeader $ noHeader rs
+      addHeader AcceptRanges $ noHeader $ noHeader rs
 
     Just (start, end) -> do
       let nextOffset | rangeValue == Just end = rangeOffset + length rs
@@ -469,7 +470,21 @@ returnRange Range{..} rs = do
       let addNextRange | length rs < rangeLimit = noHeader
                        | otherwise              = addHeader nextRange
 
-      return $ addHeader AcceptRanges $ addHeader contentRange $ addNextRange rs
+      addHeader AcceptRanges $ addHeader contentRange $ addNextRange rs
+
+-- | @'returnRange' range rs = 'return' ('addPageHeaders' range rs)@
+returnRange
+  :: ( Monad m
+     , ToHttpApiData (AcceptRanges fields)
+     , KnownSymbol field
+     , HasPagination resource field
+     , IsRangeType (RangeType resource field)
+     , PutRange fields field
+     )
+  => Range field (RangeType resource field)               -- ^ Actual 'Range' used to retrieve the results
+  -> [resource]                                           -- ^ Resources to return, fetched from a db or a local store
+  -> m (Headers (PageHeaders fields resource) [resource]) -- ^ Resources embedded in a given 'Monad' (typically a 'Servant.Server.Handler', with pagination headers)
+returnRange range rs = return (addPageHeaders range rs)
 
 -- | Default values to apply when parsing a 'Range'
 data RangeOptions  = RangeOptions

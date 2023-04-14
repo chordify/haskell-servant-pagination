@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Move header logic to a pure addPageHeaders function #21
+
 ## v2.5.0 (2022-03-09)
 - Allow text-2.0 and servant-0.19 #20
 - Expose PutRange so we can use this in integrations #18
@@ -49,21 +53,21 @@
 - Allow servant-0.14
 
 
-## v2.1.0 (2018-04-16) 
+## v2.1.0 (2018-04-16)
 
 - Add some tests (QuickCheck round-up & control some Ranges parsing)
 - Add `Show` and `Eq` instances for Ranges
-- Expose `putRange` function 
+- Expose `putRange` function
 - Review `getDefaultRange` signature (remove Maybe argument)
 
 
 ## v2.0.0 (2018-04-06)
 
 - Review internal implementation and public API (ditch Range combinator to favor type-level
-  list and more discrete footprint). 
+  list and more discrete footprint).
 
 - Remove 'Total-Count' header, can still be added on top of the range headers but isn't a Range
-  header so to speak. 
+  header so to speak.
 
 - Extend haddock documentation to be more user-friendly
 
