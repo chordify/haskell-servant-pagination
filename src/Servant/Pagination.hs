@@ -118,10 +118,10 @@ module Servant.Pagination
   , applyRange
   ) where
 
-import           Data.List          (filter, find, intercalate)
+import           Data.List          (find, intercalate)
 import           Data.Maybe         (listToMaybe)
-import           Data.Proxy         (Proxy (..))
-import           Data.Semigroup     ((<>))
+import           Data.OpenApi       (ToParamSchema (..))
+import           Data.String        (fromString)
 import           Data.Text          (Text)
 import           GHC.Generics       (Generic)
 import           GHC.TypeLits       (KnownSymbol, Symbol, symbolVal)
@@ -129,6 +129,7 @@ import           Network.URI.Encode (decodeText, encodeText)
 import           Servant
 
 import qualified Data.List          as List
+import qualified Data.OpenApi       as O
 import qualified Data.Text          as Text
 import qualified Safe
 
@@ -136,6 +137,10 @@ import qualified Safe
 --
 -- TYPES
 --
+
+-- | Helper type to define 'Header' with 'Description'.
+type HeaderWithDescription name a description =
+  Header' '[Description description, Optional, Strict] name a
 
 -- | Set of constraints that must apply to every type target of a 'Range'
 type IsRangeType a =
@@ -249,7 +254,6 @@ instance {-# OVERLAPPABLE #-} (PutRange fields field) => PutRange (y ': fields) 
   putRange = Lift . putRange
   {-# INLINE putRange #-}
 
-
 instance ToHttpApiData (Ranges fields resource) where
   toUrlPiece (Lift range) =
     toUrlPiece range
@@ -320,6 +324,16 @@ instance
         | n < 0     = Left "Limit must be non-negative"
         | otherwise = return n
 
+instance ToParamSchema (Ranges fields resource) where
+  toParamSchema _ =
+    mempty
+      { O._schemaType = Just O.OpenApiString
+      , O._schemaFormat =
+          Just "<field> [<value>][; offset <o>][; limit <l>][; order <asc|desc>]"
+      , O._schemaExample =
+          Just $ fromString "createdAt 2017-02-19T12%3A56%3A28.000Z; offset 0; limit 100; order desc"
+      }
+
 -- | Define the sorting order of the paginated resources (ascending or descending)
 data RangeOrder
   = RangeAsc
@@ -351,13 +365,19 @@ instance FromHttpApiData RangeOrder where
 --   :> 'Servant.Get' '['Servant.JSON'] ('Servant.Headers' MyHeaders [Resource])
 -- @
 type PageHeaders (fields :: [Symbol]) (resource :: *) =
-  '[ Header "Accept-Ranges" (AcceptRanges fields)
-   , Header "Content-Range" (ContentRange fields resource)
-   , Header "Next-Range"    (Ranges fields resource)
+  '[ HeaderWithDescription "Accept-Ranges" (AcceptRanges fields)
+      "A comma-separated list of fields upon which a pagination range can be defined"
+   , HeaderWithDescription "Content-Range" (ContentRange fields resource)
+      "Actual pagination range corresponding to the content being returned."
+   , HeaderWithDescription "Next-Range"    (Ranges fields resource)
+      "Indicate what should be the next Range header in order to retrieve the next range"
    ]
 
 -- | Accepted Ranges in the `Accept-Ranges` response's header
 data AcceptRanges (fields :: [Symbol]) = AcceptRanges
+
+instance ToHttpApiData (AcceptRanges '[]) where
+  toUrlPiece AcceptRanges = mempty
 
 instance (KnownSymbol field) => ToHttpApiData (AcceptRanges '[field]) where
   toUrlPiece AcceptRanges =
@@ -367,6 +387,12 @@ instance (ToHttpApiData (AcceptRanges (f ': fs)), KnownSymbol field) => ToHttpAp
   toUrlPiece AcceptRanges =
     Text.pack (symbolVal (Proxy @field)) <> "," <> toUrlPiece (AcceptRanges @(f ': fs))
 
+instance ToParamSchema (AcceptRanges fields) where
+  toParamSchema _ =
+    mempty
+      { O._schemaType = Just O.OpenApiString
+      , O._schemaExample = Just $ fromString "createdAt, modifiedAt"
+      }
 
 -- | Actual range returned, in the `Content-Range` response's header
 data ContentRange (fields :: [Symbol]) resource =
@@ -380,6 +406,14 @@ instance ToHttpApiData (ContentRange fields res) where
   toUrlPiece (ContentRange start end field) =
     Text.pack (symbolVal field) <> " " <> (encodeText . toUrlPiece) start <> ".." <> (encodeText . toUrlPiece) end
 
+
+instance ToParamSchema (ContentRange fields resource) where
+  toParamSchema _ =
+    mempty
+      { O._schemaType = Just O.OpenApiString
+      , O._schemaExample =
+          Just $ fromString "createdAt 2017-01-15T23%3A14%3A51.000Z..2017-02-18T06%3A10%3A23.000Z"
+      }
 
 --
 -- USE RANGES
