@@ -387,6 +387,9 @@ instance (ToHttpApiData (AcceptRanges (f ': fs)), KnownSymbol field) => ToHttpAp
   toUrlPiece AcceptRanges =
     Text.pack (symbolVal (Proxy @field)) <> "," <> toUrlPiece (AcceptRanges @(f ': fs))
 
+instance FromHttpApiData (AcceptRanges fields) where
+  parseUrlPiece _ = Right $ AcceptRanges @fields
+
 instance ToParamSchema (AcceptRanges fields) where
   toParamSchema _ =
     mempty
@@ -406,6 +409,20 @@ instance ToHttpApiData (ContentRange fields res) where
   toUrlPiece (ContentRange start end field) =
     Text.pack (symbolVal field) <> " " <> (encodeText . toUrlPiece) start <> ".." <> (encodeText . toUrlPiece) end
 
+
+instance
+  ( HasPagination resource field
+  , IsRangeType (RangeType resource field)
+  ) => FromHttpApiData (ContentRange (field ': fields) resource) where
+  parseUrlPiece ""  = Left "Invalid Content Range"
+  parseUrlPiece txt =
+    case Text.splitOn ".." . snd $ Text.breakOnEnd " " txt of
+      [start, end] ->
+        ContentRange
+          <$> parseUrlPiece start
+          <*> parseUrlPiece end
+          <*> pure (Proxy @field)
+      _otherwise -> Left "Invalid Content Range"
 
 instance ToParamSchema (ContentRange fields resource) where
   toParamSchema _ =
