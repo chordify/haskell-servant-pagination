@@ -388,6 +388,9 @@ instance (ToHttpApiData (AcceptRanges (f ': fs)), KnownSymbol field) => ToHttpAp
   toUrlPiece AcceptRanges =
     Text.pack (symbolVal (Proxy @field)) <> "," <> toUrlPiece (AcceptRanges @(f ': fs))
 
+instance FromHttpApiData (AcceptRanges '[]) where
+  parseUrlPiece _ = Left "Invalid Accept Ranges"
+
 instance KnownSymbol field => FromHttpApiData (AcceptRanges (field ': fields)) where
   parseUrlPiece txt =
     let field = Text.pack $ symbolVal (Proxy @field)
