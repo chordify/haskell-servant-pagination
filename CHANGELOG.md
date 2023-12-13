@@ -4,6 +4,10 @@
 
 - Move header logic to a pure addPageHeaders function #21
 
+## v2.5.1 (2023-12-13)
+
+- Bump `servant`, `servant-server`, `text` versions (see [#24](https://github.com/chordify/haskell-servant-pagination/pull/24)).
+
 ## v2.5.0 (2022-03-09)
 - Allow text-2.0 and servant-0.19 #20
 - Expose PutRange so we can use this in integrations #18
