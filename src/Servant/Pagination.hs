@@ -118,10 +118,10 @@ module Servant.Pagination
   , applyRange
   ) where
 
-import           Data.List          (filter, find, intercalate)
+import           Data.List          (find, intercalate)
 import           Data.Maybe         (listToMaybe)
-import           Data.Proxy         (Proxy (..))
-import           Data.Semigroup     ((<>))
+import           Data.OpenApi       (ToParamSchema (..))
+import           Data.String        (fromString)
 import           Data.Text          (Text)
 import           GHC.Generics       (Generic)
 import           GHC.TypeLits       (KnownSymbol, Symbol, symbolVal)
@@ -129,6 +129,7 @@ import           Network.URI.Encode (decodeText, encodeText)
 import           Servant
 
 import qualified Data.List          as List
+import qualified Data.OpenApi       as O
 import qualified Data.Text          as Text
 import qualified Safe
 
@@ -136,6 +137,10 @@ import qualified Safe
 --
 -- TYPES
 --
+
+-- | Helper type to define 'Header' with 'Description'.
+type HeaderWithDescription name a description =
+  Header' '[Description description, Optional, Strict] name a
 
 -- | Set of constraints that must apply to every type target of a 'Range'
 type IsRangeType a =
@@ -249,7 +254,6 @@ instance {-# OVERLAPPABLE #-} (PutRange fields field) => PutRange (y ': fields) 
   putRange = Lift . putRange
   {-# INLINE putRange #-}
 
-
 instance ToHttpApiData (Ranges fields resource) where
   toUrlPiece (Lift range) =
     toUrlPiece range
@@ -320,6 +324,16 @@ instance
         | n < 0     = Left "Limit must be non-negative"
         | otherwise = return n
 
+instance ToParamSchema (Ranges fields resource) where
+  toParamSchema _ =
+    mempty
+      { O._schemaType = Just O.OpenApiString
+      , O._schemaFormat =
+          Just "<field> [<value>][; offset <o>][; limit <l>][; order <asc|desc>]"
+      , O._schemaExample =
+          Just $ fromString "createdAt 2017-02-19T12%3A56%3A28.000Z; offset 0; limit 100; order desc"
+      }
+
 -- | Define the sorting order of the paginated resources (ascending or descending)
 data RangeOrder
   = RangeAsc
@@ -351,13 +365,20 @@ instance FromHttpApiData RangeOrder where
 --   :> 'Servant.Get' '['Servant.JSON'] ('Servant.Headers' MyHeaders [Resource])
 -- @
 type PageHeaders (fields :: [Symbol]) (resource :: *) =
-  '[ Header "Accept-Ranges" (AcceptRanges fields)
-   , Header "Content-Range" (ContentRange fields resource)
-   , Header "Next-Range"    (Ranges fields resource)
+  '[ HeaderWithDescription "Accept-Ranges" (AcceptRanges fields)
+      "A comma-separated list of fields upon which a pagination range can be defined"
+   , HeaderWithDescription "Content-Range" (ContentRange fields resource)
+      "Actual pagination range corresponding to the content being returned."
+   , HeaderWithDescription "Next-Range"    (Ranges fields resource)
+      "Indicate what should be the next Range header in order to retrieve the next range"
    ]
 
 -- | Accepted Ranges in the `Accept-Ranges` response's header
 data AcceptRanges (fields :: [Symbol]) = AcceptRanges
+  deriving (Show, Eq)
+
+instance ToHttpApiData (AcceptRanges '[]) where
+  toUrlPiece AcceptRanges = mempty
 
 instance (KnownSymbol field) => ToHttpApiData (AcceptRanges '[field]) where
   toUrlPiece AcceptRanges =
@@ -367,6 +388,23 @@ instance (ToHttpApiData (AcceptRanges (f ': fs)), KnownSymbol field) => ToHttpAp
   toUrlPiece AcceptRanges =
     Text.pack (symbolVal (Proxy @field)) <> "," <> toUrlPiece (AcceptRanges @(f ': fs))
 
+instance FromHttpApiData (AcceptRanges '[]) where
+  parseUrlPiece _ = Left "Invalid Accept Ranges"
+
+instance KnownSymbol field => FromHttpApiData (AcceptRanges (field ': fields)) where
+  parseUrlPiece txt =
+    let field = Text.pack $ symbolVal (Proxy @field)
+    in
+      case Text.splitOn "," txt of
+        field' : _ | field == field' -> pure $ AcceptRanges @(field ': fields)
+        _ -> Left "Invalid Accept Ranges"
+
+instance ToParamSchema (AcceptRanges fields) where
+  toParamSchema _ =
+    mempty
+      { O._schemaType = Just O.OpenApiString
+      , O._schemaExample = Just $ fromString "createdAt, modifiedAt"
+      }
 
 -- | Actual range returned, in the `Content-Range` response's header
 data ContentRange (fields :: [Symbol]) resource =
@@ -376,10 +414,54 @@ data ContentRange (fields :: [Symbol]) resource =
   , contentRangeField :: Proxy field
   }
 
+instance Eq (ContentRange (field ': fields) a) where
+  (ContentRange start0 end0 _) == (ContentRange start1 end1 _) =
+       toUrlPiece start0 == toUrlPiece start1
+    && toUrlPiece end0 == toUrlPiece end1
+
+instance Show (ContentRange (field ': fields) a) where
+  showsPrec prec ContentRange{..} =
+    let
+      inner = "ContentRange {" ++ args ++ "}"
+      args  = intercalate ", "
+        [ "contentRangeStart = "  ++ Text.unpack (encodeText $ toUrlPiece contentRangeStart)
+        , "contentRangeEnd   = "  ++ Text.unpack (encodeText $ toUrlPiece contentRangeEnd)
+        , "contentRangeField = "  ++ "\"" ++ symbolVal contentRangeField ++ "\""
+        ]
+    in
+      flip mappend $ if prec > 10 then
+        "(" ++ inner ++ ")"
+      else
+        inner
+
 instance ToHttpApiData (ContentRange fields res) where
   toUrlPiece (ContentRange start end field) =
     Text.pack (symbolVal field) <> " " <> (encodeText . toUrlPiece) start <> ".." <> (encodeText . toUrlPiece) end
 
+instance FromHttpApiData (ContentRange '[] resource) where
+  parseUrlPiece _ = Left "Invalid Content Range"
+
+instance
+  ( KnownSymbol field
+  , ToHttpApiData (RangeType resource field)
+  , FromHttpApiData (RangeType resource field)
+  ) => FromHttpApiData (ContentRange (field ': fields) resource) where
+  parseUrlPiece txt =
+    case Text.splitOn ".." . snd $ Text.breakOnEnd " " txt of
+      [start, end] ->
+        ContentRange
+          <$> parseUrlPiece start
+          <*> parseUrlPiece end
+          <*> pure (Proxy @field)
+      _otherwise -> Left "Invalid Content Range"
+
+instance ToParamSchema (ContentRange fields resource) where
+  toParamSchema _ =
+    mempty
+      { O._schemaType = Just O.OpenApiString
+      , O._schemaExample =
+          Just $ fromString "createdAt 2017-01-15T23%3A14%3A51.000Z..2017-02-18T06%3A10%3A23.000Z"
+      }
 
 --
 -- USE RANGES

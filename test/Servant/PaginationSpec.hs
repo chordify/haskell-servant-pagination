@@ -28,6 +28,14 @@ spec = do
     it "parseUrlPiece . toUrlPiece = pure" $ withMaxSuccess 10000 $ property $
       \x -> (fmap extractB . parseUrlPiece . toUrlPiece) x == (pure . extractB) x
 
+    it "parseUrlPiece . toUrlPiece = pure" $ withMaxSuccess 10000 $ property $
+      -- FIXME: static input
+      \(x :: AcceptRanges '["fieldA", "fieldB"]) -> (parseUrlPiece . toUrlPiece) x == pure x
+
+    -- FIXME: static input
+    it "parseUrlPiece . toUrlPiece = pure" $ withMaxSuccess 10000 $ property $
+      \(x :: ContentRange '["fieldA 1..5", "fieldB a..z"] Resource) -> (parseUrlPiece . toUrlPiece) x == pure x
+
   describe "try-out ranges" $ do
     let r0 = getDefaultRange (Proxy @Resource)  :: Range "fieldA" Int
 
@@ -60,13 +68,30 @@ spec = do
 
     it "Range: fieldB" $
       isLeft (parseUrlPiece "fieldB" :: Either Text (Ranges '["fieldA"] Resource))
+
+    it "AcceptRange: fieldA xxx" $
+      isLeft (parseUrlPiece "fieldA xxx" :: Either Text (AcceptRanges '["fieldA", "fieldB"]))
+
+    it "AcceptRange: fieldC" $
+      isLeft (parseUrlPiece "fieldC" :: Either Text (AcceptRanges '["fieldA", "fieldB"]))
+
+    it "AcceptRange: fieldB" $
+      isLeft (parseUrlPiece "fieldB" :: Either Text (AcceptRanges '["fieldA"]))
+
+    it "ContentRange: fieldA" $
+      isLeft (parseUrlPiece "fieldA" :: Either Text (ContentRange '["fieldA 1..5", "fieldB a..z"] Resource))
+
+    it "ContentRange: fieldC 1..5" $
+      isLeft (parseUrlPiece "fieldC" :: Either Text (ContentRange '["fieldA 1..5", "fieldB a..z"] Resource))
+
+    it "ContentRange: fieldB a..z" $
+      isLeft (parseUrlPiece "fieldB" :: Either Text (ContentRange '["fieldA 1..5"] Resource))
  where
   extractA :: Ranges '["fieldA", "fieldB"] Resource -> Maybe (Range "fieldA" Int)
   extractA = extractRange
 
   extractB :: Ranges '["fieldA", "fieldB"] Resource -> Maybe (Range "fieldB" SimpleString)
   extractB = extractRange
-
 
 data Resource = Resource
   { fieldA :: Int
@@ -118,3 +143,9 @@ instance (IsRangeType a, Arbitrary a) => Arbitrary (Range "fieldB" a) where
     <*> fmap getPositive arbitrary
     <*> oneof [pure RangeAsc, pure RangeDesc]
     <*> pure Proxy
+
+instance Arbitrary (AcceptRanges fields) where
+  arbitrary = pure $ AcceptRanges @fields -- FIXME: bad generator
+
+instance Arbitrary (ContentRange '["fieldA 1..5", "fieldB a..z"] Resource) where
+  arbitrary = undefined -- FIXME: bad generator
